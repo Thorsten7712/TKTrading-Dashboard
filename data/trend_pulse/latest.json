@@ -2,8 +2,358 @@
   "asof": "2026-01-09",
   "strategy_id": "trend_pulse",
   "trend_suffix": "trend_off",
-  "generated_utc": "2026-01-12T15:37:29Z",
+  "generated_utc": "2026-01-12T16:37:12Z",
   "active": [
+    {
+      "universe": "dax",
+      "symbol": "ALV",
+      "buy": 390.0,
+      "sl": 378.85,
+      "tp": 417.875,
+      "rr": 2.500000000000005,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "dax",
+      "symbol": "MBG",
+      "buy": 60.3,
+      "sl": 57.922,
+      "tp": 66.245,
+      "rr": 2.500000000000003,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "dax",
+      "symbol": "PAH3",
+      "buy": 38.75,
+      "sl": 37.449,
+      "tp": 42.0025,
+      "rr": 2.4999999999999947,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "BC8",
+      "buy": 44.0,
+      "sl": 42.252,
+      "tp": 48.370000000000005,
+      "rr": 2.499999999999996,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "DWS",
+      "buy": 57.85,
+      "sl": 55.64,
+      "tp": 63.37500000000001,
+      "rr": 2.5000000000000018,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "FNTN",
+      "buy": 29.56,
+      "sl": 28.824,
+      "tp": 31.4,
+      "rr": 2.499999999999998,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "KGX",
+      "buy": 69.0,
+      "sl": 65.86,
+      "tp": 76.85,
+      "rr": 2.499999999999998,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "LHA",
+      "buy": 9.042,
+      "sl": 8.6096,
+      "tp": 10.123,
+      "rr": 2.500000000000002,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "NDX1",
+      "buy": 32.7,
+      "sl": 30.636000000000003,
+      "tp": 37.86000000000001,
+      "rr": 2.5000000000000018,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "SRT3",
+      "buy": 261.5,
+      "sl": 248.5,
+      "tp": 294.0,
+      "rr": 2.5,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "1U1",
+      "buy": 26.3,
+      "sl": 25.025,
+      "tp": 29.487500000000004,
+      "rr": 2.4999999999999987,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "INH",
+      "buy": 30.25,
+      "sl": 29.19,
+      "tp": 32.9,
+      "rr": 2.4999999999999933,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "S92",
+      "buy": 37.38,
+      "sl": 33.878,
+      "tp": 46.135000000000005,
+      "rr": 2.499999999999999,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "SZG",
+      "buy": 46.5,
+      "sl": 43.232,
+      "tp": 54.67,
+      "rr": 2.5,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
     {
       "universe": "sp500",
       "symbol": "AAPL",
@@ -1106,6 +1456,781 @@
     }
   ],
   "edge": [
+    {
+      "universe": "dax",
+      "symbol": "G1A",
+      "buy": 59.65,
+      "sl": 57.275,
+      "tp": 65.58749999999999,
+      "rr": 2.5,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "dax",
+      "symbol": "G1A",
+      "buy": 59.65,
+      "sl": 57.355,
+      "tp": 65.38749999999999,
+      "rr": 2.499999999999997,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "dax",
+      "symbol": "G1A",
+      "buy": 59.65,
+      "sl": 57.425,
+      "tp": 65.21249999999999,
+      "rr": 2.4999999999999982,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "dax",
+      "symbol": "G1A",
+      "buy": 59.65,
+      "sl": 57.39,
+      "tp": 65.3,
+      "rr": 2.5000000000000018,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "dax",
+      "symbol": "MBG",
+      "buy": 60.3,
+      "sl": 57.922,
+      "tp": 66.245,
+      "rr": 2.500000000000003,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "dax",
+      "symbol": "PAH3",
+      "buy": 38.75,
+      "sl": 37.449,
+      "tp": 42.0025,
+      "rr": 2.4999999999999947,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "dax",
+      "symbol": "RHM",
+      "buy": 1847.0,
+      "sl": 1744.05,
+      "tp": 2104.375,
+      "rr": 2.499999999999999,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "dax",
+      "symbol": "RHM",
+      "buy": 1847.0,
+      "sl": 1743.5,
+      "tp": 2105.75,
+      "rr": 2.5,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "AG1",
+      "buy": 28.98,
+      "sl": 26.482,
+      "tp": 35.225,
+      "rr": 2.500000000000001,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "AG1",
+      "buy": 28.98,
+      "sl": 26.432,
+      "tp": 35.35,
+      "rr": 2.4999999999999973,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "AT1",
+      "buy": 2.798,
+      "sl": 2.6552,
+      "tp": 3.155,
+      "rr": 2.5000000000000018,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "BC8",
+      "buy": 44.0,
+      "sl": 42.252,
+      "tp": 48.370000000000005,
+      "rr": 2.499999999999996,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "DWS",
+      "buy": 57.85,
+      "sl": 55.64,
+      "tp": 63.37500000000001,
+      "rr": 2.5000000000000018,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "FNTN",
+      "buy": 29.56,
+      "sl": 28.824,
+      "tp": 31.4,
+      "rr": 2.499999999999998,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "KGX",
+      "buy": 69.0,
+      "sl": 65.86,
+      "tp": 76.85,
+      "rr": 2.499999999999998,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "LHA",
+      "buy": 9.042,
+      "sl": 8.6096,
+      "tp": 10.123,
+      "rr": 2.500000000000002,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "NDX1",
+      "buy": 32.7,
+      "sl": 30.636000000000003,
+      "tp": 37.86000000000001,
+      "rr": 2.5000000000000018,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "SRT3",
+      "buy": 261.5,
+      "sl": 248.5,
+      "tp": 294.0,
+      "rr": 2.5,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "mdax",
+      "symbol": "TEG",
+      "buy": 13.89,
+      "sl": 13.265,
+      "tp": 15.4525,
+      "rr": 2.5,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "1U1",
+      "buy": 26.3,
+      "sl": 25.025,
+      "tp": 29.487500000000004,
+      "rr": 2.4999999999999987,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "ADN1",
+      "buy": 89.1,
+      "sl": 84.14999999999999,
+      "tp": 101.475,
+      "rr": 2.5000000000000013,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "ADN1",
+      "buy": 89.1,
+      "sl": 83.96,
+      "tp": 101.95,
+      "rr": 2.5000000000000013,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "ADN1",
+      "buy": 89.1,
+      "sl": 83.74,
+      "tp": 102.5,
+      "rr": 2.5000000000000013,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "ADN1",
+      "buy": 89.1,
+      "sl": 83.77,
+      "tp": 102.425,
+      "rr": 2.5000000000000013,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "INH",
+      "buy": 30.25,
+      "sl": 29.19,
+      "tp": 32.9,
+      "rr": 2.4999999999999933,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "S92",
+      "buy": 37.38,
+      "sl": 33.878,
+      "tp": 46.135000000000005,
+      "rr": 2.499999999999999,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "SPG",
+      "buy": 17.76,
+      "sl": 16.770000000000003,
+      "tp": 20.235000000000003,
+      "rr": 2.4999999999999964,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "SPG",
+      "buy": 17.76,
+      "sl": 16.785,
+      "tp": 20.1975,
+      "rr": 2.4999999999999964,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "SPG",
+      "buy": 17.76,
+      "sl": 16.765,
+      "tp": 20.2475,
+      "rr": 2.4999999999999982,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "SPG",
+      "buy": 17.76,
+      "sl": 16.735000000000003,
+      "tp": 20.3225,
+      "rr": 2.500000000000004,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
+    {
+      "universe": "sdax",
+      "symbol": "SZG",
+      "buy": 46.5,
+      "sl": 43.232,
+      "tp": 54.67,
+      "rr": 2.5,
+      "hold_days_min": null,
+      "hold_days_max": null,
+      "shares": null,
+      "risk_usd": null,
+      "fee_usd": null,
+      "stats": {
+        "trades": null,
+        "score": null,
+        "mean_R": null,
+        "pf": null,
+        "total_R": null
+      },
+      "overlay": {
+        "risk_flag": null,
+        "events": [],
+        "news": []
+      }
+    },
     {
       "universe": "sp500",
       "symbol": "A",
