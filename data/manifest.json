@@ -1,0 +1,9 @@
+{
+  "strategies": [
+    {
+      "id": "trend_pulse",
+      "name": "TrendPulse",
+      "path": "data/trend_pulse/latest.json"
+    }
+  ]
+}
