@@ -29,32 +29,6 @@ function linkButton(href, label) {
   return a;
 }
 
-function riskBadge(flag) {
-  const span = document.createElement("span");
-  span.className = "badge " + (flag || "");
-  span.textContent = flag ? String(flag).toUpperCase() : "–";
-  return span;
-}
-
-function buildEventsCell(overlay) {
-  const parts = [];
-  if (overlay?.risk_flag) parts.push(`[${overlay.risk_flag}]`);
-  if (Array.isArray(overlay?.events) && overlay.events.length) parts.push(overlay.events.join(" • "));
-  if (Array.isArray(overlay?.news) && overlay.news.length) parts.push(overlay.news.slice(0, 2).join(" • "));
-  return parts.length ? parts.join(" — ") : "–";
-}
-
-function applyFilter(rows, q) {
-  if (!q) return rows;
-  const s = q.toLowerCase();
-  return rows.filter(r =>
-    String(r.symbol || "").toLowerCase().includes(s) ||
-    String(r.universe || "").toLowerCase().includes(s)
-  );
-}
-
-// ---------------- CSV parsing ----------------
-
 function stripBOM(s) {
   return s && s.charCodeAt(0) === 0xfeff ? s.slice(1) : s;
 }
@@ -103,6 +77,7 @@ function parseCSV(text) {
   for (let i = 1; i < lines.length; i++) {
     const parts = splitCSVLine(lines[i]);
     if (!parts.length) continue;
+
     const obj = {};
     for (let j = 0; j < header.length; j++) {
       const key = header[j];
@@ -114,7 +89,6 @@ function parseCSV(text) {
         continue;
       }
 
-      // numeric coercion (incl. scientific)
       const n = Number(raw);
       obj[key] = (!Number.isNaN(n) && /^[+-]?\d+(\.\d+)?(e[+-]?\d+)?$/i.test(raw)) ? n : raw;
     }
@@ -123,63 +97,23 @@ function parseCSV(text) {
   return out;
 }
 
-// ---------------- Rankings -> stats lookup ----------------
-
-async function buildStatsLookup({ rankingsDir, universes, trendSuffix }) {
-  const map = new Map();
-  const missing = [];
-  const loaded = [];
-
-  if (!rankingsDir || !universes?.length) {
-    return { map, missing, loaded };
-  }
-
-  for (const u of universes) {
-    const url = `${rankingsDir}/ranking_${u}_${trendSuffix}_score.csv`;
-
-    try {
-      const txt = await loadText(url);
-      const rows = parseCSV(txt);
-
-      let cnt = 0;
-      for (const r of rows) {
-        const sym = String(r.symbol || "").trim();
-        if (!sym) continue;
-
-        // THESE NAMES MATCH YOUR CSV EXACTLY:
-        // trades, score, mean_R, profit_factor
-        map.set(`${u}__${sym}`, {
-          trades: r.trades ?? null,
-          score: r.score ?? null,
-          mean_R: r.mean_R ?? null,
-          pf: r.profit_factor ?? null, // PF column in UI
-        });
-        cnt++;
-      }
-      loaded.push(`${u}: ${cnt}`);
-    } catch (e) {
-      missing.push(`${u} (${e.message})`);
-    }
-  }
-
-  return { map, missing, loaded };
+function applyFilter(rows, q) {
+  if (!q) return rows;
+  const s = q.toLowerCase();
+  return rows.filter(r =>
+    String(r.symbol || "").toLowerCase().includes(s) ||
+    String(r.universe || "").toLowerCase().includes(s)
+  );
 }
 
-function enrichWithStats(rows, statsMap) {
-  return rows.map(r => {
-    const u = String(r.universe || "").trim();
-    const sym = String(r.symbol || "").trim();
-    const stats = statsMap.get(`${u}__${sym}`) || null;
-    return { ...r, stats };
-  });
+function buildEventsCell(_overlay) {
+  // Overlay kommt später; aktuell keine Daten -> "-"
+  return "–";
 }
-
-// ---------------- Table rendering ----------------
 
 function rowToTr(r) {
   const tr = document.createElement("tr");
 
-  // Hold: prefer explicit hold range, else show time_stop_bars
   const hold =
     (r.hold_days_min && r.hold_days_max)
       ? `${r.hold_days_min}-${r.hold_days_max}d`
@@ -200,31 +134,64 @@ function rowToTr(r) {
     fmt(r.stats?.score, 3),
     fmt(r.stats?.mean_R, 3),
     fmt(r.stats?.pf, 2),
-    buildEventsCell(r.overlay),
+    buildEventsCell(null),
   ];
 
-  cells.forEach((c, idx) => {
+  cells.forEach((c) => {
     const td = document.createElement("td");
-    if (idx === 14 && r.overlay?.risk_flag) {
-      const wrap = document.createElement("div");
-      wrap.style.display = "flex";
-      wrap.style.gap = "8px";
-      wrap.style.alignItems = "center";
-      wrap.appendChild(riskBadge(r.overlay.risk_flag));
-      const txt = document.createElement("span");
-      txt.textContent = c;
-      wrap.appendChild(txt);
-      td.appendChild(wrap);
-    } else {
-      td.textContent = (c === null || c === undefined || c === "") ? "–" : String(c);
-    }
+    td.textContent = (c === null || c === undefined || c === "") ? "–" : String(c);
     tr.appendChild(td);
   });
 
   return tr;
 }
 
-// ---------------- Main ----------------
+async function buildStatsLookup({ rankingsDir, universes, trendSuffix }) {
+  const map = new Map();
+  const missing = [];
+  const loaded = [];
+
+  for (const u of universes) {
+    const url = `${rankingsDir}/ranking_${u}_${trendSuffix}_score.csv`;
+    try {
+      const txt = await loadText(url);
+      const rows = parseCSV(txt);
+
+      let cnt = 0;
+      for (const r of rows) {
+        const sym = String(r.symbol || "").trim();
+        if (!sym) continue;
+
+        map.set(`${u}__${sym}`, {
+          trades: r.trades ?? null,
+          score: r.score ?? null,
+          mean_R: r.mean_R ?? null,
+          pf: r.profit_factor ?? null,
+        });
+        cnt++;
+      }
+      loaded.push(`${u}:${cnt}`);
+    } catch (e) {
+      missing.push(`${u} (${e.message})`);
+    }
+  }
+
+  return { map, missing, loaded };
+}
+
+function enrichWithStats(rows, statsMap) {
+  return rows.map(r => {
+    const u = String(r.universe || "").trim();
+    const sym = String(r.symbol || "").trim();
+    const stats = statsMap.get(`${u}__${sym}`) || null;
+    return { ...r, stats };
+  });
+}
+
+async function loadRowsFromCSV(csvUrl) {
+  const txt = await loadText(csvUrl);
+  return parseCSV(txt);
+}
 
 async function main() {
   const metaEl = document.getElementById("meta");
@@ -258,9 +225,11 @@ async function main() {
     strategySelect.appendChild(opt);
   }
 
-  let currentLatest = null;
+  let latest = null;
   let rowsActive = [];
   let rowsEdge = [];
+  let rowsTrade = [];
+  let rowsPos = [];
 
   async function loadStrategy() {
     const sel = strategySelect.selectedOptions[0];
@@ -272,76 +241,67 @@ async function main() {
     tblBody.innerHTML = "";
     rowsActive = [];
     rowsEdge = [];
-    currentLatest = null;
+    rowsTrade = [];
+    rowsPos = [];
+    latest = null;
 
-    // 1) latest.json
     try {
-      currentLatest = await loadJSON(latestPath);
+      latest = await loadJSON(latestPath);
     } catch (e) {
       metaEl.textContent = `latest.json nicht ladbar (${latestPath}): ${e.message}`;
       return;
     }
 
-    const strategyId = currentLatest.strategy || sel.value;
-    const trendSuffix = currentLatest.trend_suffix || "trend_off";
-    const asof = currentLatest.asof || "–";
-    const generated = currentLatest.generated || "–";
+    const strategyId = latest.strategy || sel.value;
+    const trendSuffix = latest.trend_suffix || "trend_off";
+    const asof = latest.asof || "–";
+    const generated = latest.generated || "–";
 
-    // links
-    const csv = currentLatest.paths?.csv || {};
+    const csv = latest.paths?.csv || {};
+    const rankingsDir = latest.paths?.rankings_dir || `data/${strategyId}/rankings`;
+
+    // Links
     const linkItems = [
       ["Candidates Active (CSV)", csv.candidates_active],
       ["Candidates Edge (CSV)", csv.candidates_edge],
       ["Trade Plan (CSV)", csv.trade_plan],
       ["Position Plan (CSV)", csv.position_plan],
-      ["Archive (JSON)", currentLatest.paths?.archive],
+      ["Archive (JSON)", latest.paths?.archive],
     ].filter(([, href]) => !!href);
 
     linkItems.forEach(([label, href]) => linksEl.appendChild(linkButton(href, label)));
 
-    // 2) archive snapshot with actual rows
-    const archivePath = currentLatest.paths?.archive;
-    if (!archivePath) {
-      metaEl.textContent = `latest.json hat keinen paths.archive`;
-      return;
-    }
-
-    let snapshot;
+    // Load CSV rows (do NOT depend on archive JSON)
     try {
-      snapshot = await loadJSON(archivePath);
+      if (csv.candidates_active) rowsActive = await loadRowsFromCSV(csv.candidates_active);
+      if (csv.candidates_edge) rowsEdge = await loadRowsFromCSV(csv.candidates_edge);
+      if (csv.trade_plan) rowsTrade = await loadRowsFromCSV(csv.trade_plan);
+      if (csv.position_plan) rowsPos = await loadRowsFromCSV(csv.position_plan);
     } catch (e) {
-      metaEl.textContent = `Archive nicht ladbar (${archivePath}): ${e.message}`;
+      metaEl.textContent = `CSV nicht ladbar: ${e.message}`;
       return;
     }
 
-    const data = snapshot.data || {};
-    rowsActive = Array.isArray(data.candidates_active) ? data.candidates_active : [];
-    rowsEdge = Array.isArray(data.candidates_edge) ? data.candidates_edge : [];
-
-    // universes from rows
+    // Universes present
     const universes = Array.from(
-      new Set([...rowsActive, ...rowsEdge].map(r => String(r.universe || "").trim()).filter(Boolean))
+      new Set([...rowsActive, ...rowsEdge, ...rowsTrade, ...rowsPos].map(r => String(r.universe || "").trim()).filter(Boolean))
     ).sort();
 
-    // 3) rankings
-    const rankingsDir =
-      currentLatest.paths?.rankings_dir ||
-      `data/${strategyId}/rankings`;
-
+    // Rankings
     const { map: statsMap, missing, loaded } = await buildStatsLookup({
       rankingsDir,
       universes,
-      trendSuffix
+      trendSuffix,
     });
 
-    // 4) enrich rows
     rowsActive = enrichWithStats(rowsActive, statsMap);
     rowsEdge = enrichWithStats(rowsEdge, statsMap);
+    rowsTrade = enrichWithStats(rowsTrade, statsMap);
+    rowsPos = enrichWithStats(rowsPos, statsMap);
 
-    // Debug line in meta
     const dbg = [];
     dbg.push(`rankings_dir: ${rankingsDir}`);
-    dbg.push(`rankings loaded: ${statsMap.size} symbols`);
+    dbg.push(`rankings loaded: ${statsMap.size}`);
     if (loaded.length) dbg.push(`files: ${loaded.join(", ")}`);
     if (missing.length) dbg.push(`missing: ${missing.join(" | ")}`);
 
@@ -350,13 +310,21 @@ async function main() {
     render();
   }
 
-  function render() {
-    const view = viewSelect.value;
-    const base = (view === "edge") ? rowsEdge : rowsActive;
-    const filtered = applyFilter(base, search.value);
+  function getRowsForView(view) {
+    if (view === "edge") return rowsEdge;
+    if (view === "trade") return rowsTrade;
+    if (view === "pos") return rowsPos;
+    return rowsActive;
+  }
 
-    title.textContent = `${(strategySelect.selectedOptions[0]?.textContent || "").trim()} — ${view === "edge" ? "Edge" : "Active"}`;
-    hint.textContent = `Anzahl: ${filtered.length} (von ${base.length})`;
+  function render() {
+    const view = viewSelect.value; // active|edge
+    const rows = getRowsForView(view);
+    const filtered = applyFilter(rows, search.value);
+
+    const stratName = (strategySelect.selectedOptions[0]?.textContent || "").trim();
+    title.textContent = `${stratName} — ${view === "edge" ? "Edge" : "Active"}`;
+    hint.textContent = `Anzahl: ${filtered.length} (von ${rows.length})`;
 
     tblBody.innerHTML = "";
     filtered.forEach(r => tblBody.appendChild(rowToTr(r)));
