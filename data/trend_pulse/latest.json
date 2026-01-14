@@ -2,7 +2,7 @@
   "strategy": "trend_pulse",
   "trend_suffix": "trend_off",
   "asof": "2026-01-13",
-  "generated": "2026-01-14T08:07:29Z",
+  "generated": "2026-01-14T15:38:56Z",
   "paths": {
     "archive": "data/trend_pulse/archive/2026-01-13.json",
     "csv": {
@@ -18,5 +18,11 @@
     "candidates_edge": 258,
     "trade_plan": 6,
     "position_plan": 2
-  }
+  },
+  "universes": [
+    "dax",
+    "mdax",
+    "sdax",
+    "sp500"
+  ]
 }

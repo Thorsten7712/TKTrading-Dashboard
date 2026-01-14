@@ -1,7 +1,7 @@
 {
   "strategy": "trend_pulse",
   "trend_suffix": "trend_off",
-  "updated": "2026-01-14T08:07:29Z",
+  "updated": "2026-01-14T15:38:56Z",
   "schema": {
     "latest": [
       "strategy",
@@ -9,7 +9,8 @@
       "asof",
       "generated",
       "paths",
-      "counts"
+      "counts",
+      "universes"
     ],
     "archive": [
       "strategy",
@@ -18,6 +19,24 @@
       "generated",
       "counts",
       "data"
+    ],
+    "record_optional_fields": [
+      "stats"
+    ],
+    "stats_fields": [
+      "trades",
+      "score",
+      "mean_R",
+      "pf",
+      "profit_factor",
+      "total_R",
+      "median_R",
+      "win_rate",
+      "avg_hold",
+      "tp_rate",
+      "sl_rate",
+      "time_rate",
+      "expectancy_R"
     ]
   }
 }
