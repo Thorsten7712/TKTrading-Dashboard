@@ -22,8 +22,10 @@
       <label>
         Ansicht:
         <select id="viewSelect">
-          <option value="active">Active</option>
-          <option value="edge">Edge</option>
+          <option value="active">Candidates — Active</option>
+          <option value="edge">Candidates — Edge</option>
+          <option value="trade_plan">Trade Plan</option>
+          <option value="position_plan">Position Plan</option>
         </select>
       </label>
 
@@ -38,30 +40,12 @@
 
   <main class="wrap">
     <section class="card">
-      <h2 id="tableTitle">Candidates</h2>
+      <h2 id="tableTitle">Loading…</h2>
       <div class="hint" id="hint"></div>
 
       <div class="table-wrap">
         <table id="tbl">
-          <thead>
-            <tr>
-              <th>Universe</th>
-              <th>Symbol</th>
-              <th>Buy</th>
-              <th>SL</th>
-              <th>TP</th>
-              <th>RR</th>
-              <th>Hold</th>
-              <th>Shares</th>
-              <th>Risk$</th>
-              <th>Fee$</th>
-              <th>Trades</th>
-              <th>Score</th>
-              <th>meanR</th>
-              <th>PF</th>
-              <th>Events/News</th>
-            </tr>
-          </thead>
+          <thead></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -72,6 +56,6 @@
     </footer>
   </main>
 
-  <script src="assets/app.js?v=2026-01-14-1"></script>
+  <script src="assets/app.js"></script>
 </body>
 </html>
