@@ -1,187 +1,202 @@
 // assets/app.js
-//
-// TKTrading Dashboard Explorer (static, no build step)
-// - Reads data/manifest.json to list strategies
-// - Reads each strategy's latest.json to get pointers to CSVs
-// - Renders Active / Edge candidates from CSV (no embedded arrays needed)
-// - Cache-busting for GitHub Pages via ?_ts=...
-//
-// Expected files in dashboard repo:
-//   data/manifest.json
-//   data/<strategy_id>/latest.json  (your current schema)
-//   data/<strategy_id>/csv/candidates_active.csv
-//   data/<strategy_id>/csv/candidates_edge.csv
-//   data/<strategy_id>/csv/trade_plan.csv         (optional)
-//   data/<strategy_id>/csv/position_plan.csv      (optional)
-//
-// Your latest.json schema (example):
-// {
-//   "strategy": "trend_pulse",
-//   "trend_suffix": "trend_off",
-//   "asof": "2026-01-13",
-//   "generated": "2026-01-14T08:07:29Z",
-//   "paths": { "csv": { "candidates_active": "...", ... } },
-//   "counts": { ... }
-// }
 
-function bust(url) {
-  const u = new URL(url, window.location.href);
-  u.searchParams.set("_ts", String(Date.now()));
-  return u.toString();
-}
-
-async function loadJSON(url) {
-  const res = await fetch(bust(url), { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-  return await res.json();
-}
-
-async function loadText(url) {
-  const res = await fetch(bust(url), { cache: "no-store" });
+async function fetchText(url) {
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   return await res.text();
 }
 
+async function fetchJSON(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return await res.json();
+}
+
 function fmt(x, digits = 2) {
-  if (x === null || x === undefined || Number.isNaN(x)) return "–";
-  if (typeof x === "number") return x.toFixed(digits);
-  return String(x);
+  if (x === null || x === undefined) return "–";
+  const n = Number(x);
+  if (!Number.isFinite(n)) return String(x) === "" ? "–" : String(x);
+  return n.toFixed(digits);
 }
 
-function toNum(x) {
-  if (x === null || x === undefined) return null;
-  const s = String(x).trim();
-  if (!s) return null;
-  // tolerate German decimals
-  const n = Number(s.replace(",", "."));
-  return Number.isFinite(n) ? n : null;
+function toInt(x) {
+  const n = Number(x);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
 }
 
-function linkButton(href, label) {
-  const a = document.createElement("a");
-  a.href = href;
-  a.textContent = label;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  return a;
-}
-
-// Minimal CSV parser (handles quotes + commas)
-function splitCSVLine(line) {
-  const out = [];
-  let cur = "";
-  let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inQ) {
-      if (ch === '"' && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else if (ch === '"') {
-        inQ = false;
-      } else {
-        cur += ch;
-      }
-    } else {
-      if (ch === '"') inQ = true;
-      else if (ch === ",") {
-        out.push(cur);
-        cur = "";
-      } else cur += ch;
-    }
-  }
-  out.push(cur);
-  return out;
+function esc(s) {
+  return String(s ?? "");
 }
 
 function parseCSV(text) {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
-  if (!lines.length) return [];
-  const header = splitCSVLine(lines[0]).map((h) => h.trim());
+  // Minimal CSV parser (handles quoted commas, double quotes)
+  // Returns array of objects; first row as header.
   const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = splitCSVLine(lines[i]);
-    const o = {};
-    header.forEach((h, j) => (o[h] = (cols[j] ?? "").trim()));
-    rows.push(o);
+  let i = 0;
+  let field = "";
+  let row = [];
+  let inQuotes = false;
+
+  function pushField() {
+    row.push(field);
+    field = "";
   }
-  return rows;
+  function pushRow() {
+    // Ignore trailing empty last line
+    if (row.length === 1 && row[0] === "" && rows.length === 0) return;
+    rows.push(row);
+    row = [];
+  }
+
+  while (i < text.length) {
+    const c = text[i];
+
+    if (inQuotes) {
+      if (c === '"') {
+        // escaped quote
+        if (text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i += 1;
+        continue;
+      }
+      field += c;
+      i += 1;
+      continue;
+    }
+
+    if (c === '"') {
+      inQuotes = true;
+      i += 1;
+      continue;
+    }
+    if (c === ",") {
+      pushField();
+      i += 1;
+      continue;
+    }
+    if (c === "\n") {
+      pushField();
+      pushRow();
+      i += 1;
+      continue;
+    }
+    if (c === "\r") {
+      i += 1;
+      continue;
+    }
+
+    field += c;
+    i += 1;
+  }
+
+  // last field/row
+  pushField();
+  pushRow();
+
+  if (!rows.length) return [];
+  const header = rows[0].map(h => h.trim());
+  const out = [];
+
+  for (let r = 1; r < rows.length; r++) {
+    const cols = rows[r];
+    // skip fully empty rows
+    if (cols.every(v => (v ?? "").trim() === "")) continue;
+
+    const obj = {};
+    for (let c = 0; c < header.length; c++) {
+      obj[header[c]] = cols[c] ?? "";
+    }
+    out.push(obj);
+  }
+  return out;
 }
 
-function buildEventsCell(overlay) {
-  const parts = [];
-  if (overlay?.risk_flag) parts.push(`[${overlay.risk_flag}]`);
-  if (Array.isArray(overlay?.events) && overlay.events.length) parts.push(overlay.events.join(" • "));
-  if (Array.isArray(overlay?.news) && overlay.news.length) parts.push(overlay.news.slice(0, 2).join(" • "));
-  return parts.length ? parts.join(" — ") : "–";
-}
+function normalizeCandidateRow(r) {
+  // Candidates CSV schema is produced by your pipeline; we normalize to a stable rendering shape
+  const universe = r.universe ?? r.market_symbol ?? r.index ?? "";
+  const symbol = r.symbol ?? r.ticker ?? "";
+  const buy = r.buy ?? r.entry ?? r.entry_price ?? "";
+  const sl = r.sl ?? r.stop ?? r.stop_price ?? "";
+  const tp = r.tp ?? r.target ?? r.tp_price ?? "";
+  const rr = r.rr ?? r.RR ?? "";
+  const timeStop = r.time_stop_bars ?? r.hold ?? r.hold_bars ?? "";
 
-function riskBadge(flag) {
-  const span = document.createElement("span");
-  span.className = "badge " + (flag || "");
-  span.textContent = flag ? flag.toUpperCase() : "–";
-  return span;
-}
-
-function applyFilter(rows, q) {
-  if (!q) return rows;
-  const s = q.toLowerCase();
-  return rows.filter(
-    (r) =>
-      String(r.symbol || "").toLowerCase().includes(s) ||
-      String(r.universe || "").toLowerCase().includes(s)
-  );
-}
-
-// Map CSV row -> table row object expected by rowToTr()
-function mapCandidateCsvRow(r) {
-  // tolerate different column spellings
-  const symbol = r.symbol ?? r.Symbol ?? "";
-  const universe = r.universe ?? r.Universe ?? "";
-  const buy = toNum(r.buy ?? r.Buy);
-  const sl = toNum(r.sl ?? r.SL);
-  const tp = toNum(r.tp ?? r.TP);
-  const rr = toNum(r.rr ?? r.RR);
-
-  const holdMin = toNum(r.hold_days_min ?? r.hold_min ?? r.holdMin ?? r.HoldMin);
-  const holdMax = toNum(r.hold_days_max ?? r.hold_max ?? r.holdMax ?? r.HoldMax);
-
-  const shares = toNum(r.shares ?? r.Shares);
-  const riskUsd = toNum(r.risk_usd ?? r["risk$"] ?? r.RiskUSD ?? r.Risk);
-  const feeUsd = toNum(r.fee_usd ?? r["fee$"] ?? r.FeeUSD ?? r.Fee);
-
-  // stats columns from candidates enrichment (if present)
-  const trades = toNum(r.trades ?? r.Trades);
-  const score = toNum(r.score ?? r.Score);
-  const meanR = toNum(r.mean_R ?? r.meanR ?? r.MeanR);
-  const pf =
-    toNum(r.profit_factor ?? r.pf ?? r.PF) ??
-    (r.profit_factor === "inf" || r.PF === "inf" ? Infinity : null);
+  // ranking/stats columns (may exist directly in candidates file)
+  const trades = r.trades ?? r.n_trades ?? r.num_trades ?? "";
+  const score = r.score ?? "";
+  const meanR = r.mean_R ?? r.meanR ?? "";
+  const pf = r.profit_factor ?? r.pf ?? "";
 
   return {
-    universe,
-    symbol,
-    buy,
-    sl,
-    tp,
-    rr,
-    hold_days_min: holdMin,
-    hold_days_max: holdMax,
-    shares: shares ?? null,
-    risk_usd: riskUsd ?? null,
-    fee_usd: feeUsd ?? null,
-    stats: {
-      trades: trades ?? null,
-      score: score ?? null,
-      mean_R: meanR ?? null,
-      pf: pf ?? null,
-    },
-    overlay: null,
+    universe: esc(universe),
+    symbol: esc(symbol),
+    buy: buy === "" ? null : Number(buy),
+    sl: sl === "" ? null : Number(sl),
+    tp: tp === "" ? null : Number(tp),
+    rr: rr === "" ? null : Number(rr),
+    hold: timeStop === "" ? null : timeStop, // could be int or "30"
+    trades: trades === "" ? null : toInt(trades),
+    score: score === "" ? null : Number(score),
+    mean_R: meanR === "" ? null : Number(meanR),
+    pf: pf === "" ? null : Number(pf),
+    // placeholder for later overlay
+    events_news: "–",
   };
 }
 
-function rowToTr(r) {
+function normalizePlanRow(r) {
+  // trade_plan.csv / position_plan.csv have slightly different columns; we show common core.
+  const universe = r.universe ?? "";
+  const symbol = r.symbol ?? "";
+  const buy = r.buy ?? "";
+  const sl = r.sl ?? "";
+  const tp = r.tp ?? "";
+  const rr = r.rr ?? "";
+  const hold = r.time_stop_bars ?? "";
+  const shares = r.shares ?? "";
+  const riskUsd = r.risk_usd ?? r.risk$ ?? "";
+  const feeUsd = r.fee_usd ?? r.fee$ ?? "";
+
+  const trades = r.trades ?? "";
+  const score = r.score ?? "";
+  const meanR = r.mean_R ?? r.meanR ?? "";
+  const pf = r.profit_factor ?? r.pf ?? "";
+
+  return {
+    universe: esc(universe),
+    symbol: esc(symbol),
+    buy: buy === "" ? null : Number(buy),
+    sl: sl === "" ? null : Number(sl),
+    tp: tp === "" ? null : Number(tp),
+    rr: rr === "" ? null : Number(rr),
+    hold: hold === "" ? null : hold,
+    shares: shares === "" ? null : toInt(shares) ?? shares,
+    risk_usd: riskUsd === "" ? null : Number(riskUsd),
+    fee_usd: feeUsd === "" ? null : Number(feeUsd),
+    trades: trades === "" ? null : toInt(trades),
+    score: score === "" ? null : Number(score),
+    mean_R: meanR === "" ? null : Number(meanR),
+    pf: pf === "" ? null : Number(pf),
+    events_news: "–",
+  };
+}
+
+function applyFilter(rows, q) {
+  const s = (q || "").trim().toLowerCase();
+  if (!s) return rows;
+  return rows.filter(r =>
+    String(r.symbol || "").toLowerCase().includes(s) ||
+    String(r.universe || "").toLowerCase().includes(s)
+  );
+}
+
+function buildRowTr(r) {
   const tr = document.createElement("tr");
+
   const cells = [
     r.universe,
     r.symbol,
@@ -189,37 +204,80 @@ function rowToTr(r) {
     fmt(r.sl),
     fmt(r.tp),
     fmt(r.rr, 2),
-    r.hold_days_min != null && r.hold_days_max != null ? `${r.hold_days_min}-${r.hold_days_max}d` : "–",
+    r.hold ?? "–",
     r.shares ?? "–",
     fmt(r.risk_usd, 2),
     fmt(r.fee_usd, 2),
-    r.stats?.trades ?? "–",
-    fmt(r.stats?.score, 3),
-    fmt(r.stats?.mean_R, 3),
-    // show inf nicely
-    r.stats?.pf === Infinity ? "inf" : fmt(r.stats?.pf, 2),
-    buildEventsCell(r.overlay),
+    r.trades ?? "–",
+    fmt(r.score, 3),
+    fmt(r.mean_R, 3),
+    fmt(r.pf, 2),
+    r.events_news ?? "–",
   ];
 
-  cells.forEach((c, idx) => {
+  cells.forEach(v => {
     const td = document.createElement("td");
-    if (idx === 14 && r.overlay?.risk_flag) {
-      const wrap = document.createElement("div");
-      wrap.style.display = "flex";
-      wrap.style.gap = "8px";
-      wrap.style.alignItems = "center";
-      wrap.appendChild(riskBadge(r.overlay.risk_flag));
-      const txt = document.createElement("span");
-      txt.textContent = c;
-      wrap.appendChild(txt);
-      td.appendChild(wrap);
-    } else {
-      td.textContent = c === null || c === undefined || c === "" ? "–" : String(c);
-    }
+    td.textContent = (v === null || v === undefined || v === "") ? "–" : String(v);
     tr.appendChild(td);
   });
 
   return tr;
+}
+
+function setMeta(metaEl, latest) {
+  const asof = latest?.asof ?? "–";
+  const strategy = latest?.strategy ?? latest?.strategy_id ?? "–";
+  const gen = latest?.generated ?? latest?.generated_utc ?? "–";
+  metaEl.textContent = `asof: ${asof} • strategy: ${strategy} • generated: ${gen}`;
+}
+
+function setLinks(linksEl, latest) {
+  linksEl.innerHTML = "";
+  const csv = latest?.paths?.csv || {};
+  const items = [
+    ["Candidates Active", csv.candidates_active],
+    ["Candidates Edge", csv.candidates_edge],
+    ["Trade Plan", csv.trade_plan],
+    ["Position Plan", csv.position_plan],
+  ].filter(([, href]) => !!href);
+
+  items.forEach(([label, href]) => {
+    const a = document.createElement("a");
+    a.href = href;
+    a.textContent = label;
+    a.style.marginRight = "10px";
+    linksEl.appendChild(a);
+  });
+}
+
+async function loadLatestAndCSVs(latestPath) {
+  const latest = await fetchJSON(latestPath);
+
+  const csvPaths = latest?.paths?.csv;
+  if (!csvPaths) {
+    return { latest, csv: { active: [], edge: [], trade: [], position: [] } };
+  }
+
+  // load CSVs (if missing, keep empty)
+  async function maybeLoad(p) {
+    if (!p) return [];
+    try {
+      const t = await fetchText(p);
+      return parseCSV(t);
+    } catch (e) {
+      console.warn(`CSV not loadable: ${p}`, e);
+      return [];
+    }
+  }
+
+  const [a, e, t, p] = await Promise.all([
+    maybeLoad(csvPaths.candidates_active),
+    maybeLoad(csvPaths.candidates_edge),
+    maybeLoad(csvPaths.trade_plan),
+    maybeLoad(csvPaths.position_plan),
+  ]);
+
+  return { latest, csv: { active: a, edge: e, trade: t, position: p } };
 }
 
 async function main() {
@@ -234,7 +292,7 @@ async function main() {
 
   let manifest;
   try {
-    manifest = await loadJSON("data/manifest.json");
+    manifest = await fetchJSON("data/manifest.json");
   } catch (e) {
     metaEl.textContent = `Manifest nicht ladbar: ${e.message}`;
     return;
@@ -246,89 +304,87 @@ async function main() {
     return;
   }
 
-  // build strategy dropdown
-  strategies.forEach((s) => {
+  strategies.forEach(s => {
     const opt = document.createElement("option");
     opt.value = s.id;
     opt.textContent = s.name || s.id;
-    opt.dataset.path = s.path; // e.g. data/trend_pulse/latest.json
+    opt.dataset.path = s.path;
     strategySelect.appendChild(opt);
   });
 
-  let currentLatest = null;
-  let currentRowsActive = [];
-  let currentRowsEdge = [];
-  let currentCsvPaths = null;
+  let current = null; // { latest, csv: {active,edge,trade,position}, viewRows }
 
   async function loadStrategy() {
     const sel = strategySelect.selectedOptions[0];
-    const path = sel?.dataset?.path;
-    if (!path) return;
+    const latestPath = sel?.dataset?.path;
+    if (!latestPath) return;
 
     metaEl.textContent = "Lade Report …";
     linksEl.innerHTML = "";
     tblBody.innerHTML = "";
-    currentLatest = null;
-    currentRowsActive = [];
-    currentRowsEdge = [];
-    currentCsvPaths = null;
+    hint.textContent = "";
+    current = null;
 
     try {
-      currentLatest = await loadJSON(path);
+      current = await loadLatestAndCSVs(latestPath);
     } catch (e) {
-      metaEl.textContent = `Report nicht ladbar (${path}): ${e.message}`;
+      metaEl.textContent = `Report nicht ladbar (${latestPath}): ${e.message}`;
       return;
     }
 
-    // meta line (match your schema)
-    metaEl.textContent = `asof: ${currentLatest.asof || "–"} • strategy: ${currentLatest.strategy || "–"} • generated: ${
-      currentLatest.generated || "–"
-    }`;
-
-    // links from latest.json pointers
-    const csv = currentLatest?.paths?.csv || {};
-    currentCsvPaths = csv;
-
-    const linkItems = [
-      ["Candidates Active", csv.candidates_active],
-      ["Candidates Edge", csv.candidates_edge],
-      ["Trade Plan", csv.trade_plan],
-      ["Position Plan", csv.position_plan],
-    ].filter(([, href]) => !!href);
-
-    linkItems.forEach(([label, href]) => linksEl.appendChild(linkButton(href, label)));
-
-    // load both CSVs (fast enough, keeps switching view instant)
-    try {
-      if (csv.candidates_active) {
-        const txtA = await loadText(csv.candidates_active);
-        currentRowsActive = parseCSV(txtA).map(mapCandidateCsvRow);
-      }
-      if (csv.candidates_edge) {
-        const txtE = await loadText(csv.candidates_edge);
-        currentRowsEdge = parseCSV(txtE).map(mapCandidateCsvRow);
-      }
-    } catch (e) {
-      // show partial data if one loads, don't hard-fail
-      console.error(e);
-    }
-
+    setMeta(metaEl, current.latest);
+    setLinks(linksEl, current.latest);
     render();
   }
 
-  function render() {
-    if (!currentLatest) return;
-    const view = viewSelect.value; // active|edge
-    const rows = view === "edge" ? currentRowsEdge : currentRowsActive;
+  function getRowsForView() {
+    if (!current) return [];
+    const v = viewSelect.value;
 
+    if (v === "edge") return (current.csv.edge || []).map(normalizeCandidateRow);
+    if (v === "trade_plan") return (current.csv.trade || []).map(normalizePlanRow);
+    if (v === "position_plan") return (current.csv.position || []).map(normalizePlanRow);
+    // default: active
+    return (current.csv.active || []).map(normalizeCandidateRow);
+  }
+
+  function render() {
+    if (!current) return;
+
+    const v = viewSelect.value;
+    const rows = getRowsForView();
     const filtered = applyFilter(rows, search.value);
 
-    title.textContent = `${(strategySelect.selectedOptions[0]?.textContent || "").trim()} — ${view === "edge" ? "Edge" : "Active"}`;
+    const stratName = (strategySelect.selectedOptions[0]?.textContent || "").trim() || "Strategy";
+    const label =
+      v === "edge" ? "Candidates — Edge" :
+      v === "trade_plan" ? "Trade Plan" :
+      v === "position_plan" ? "Position Plan" :
+      "Candidates — Active";
+
+    title.textContent = `${stratName} — ${label}`;
     hint.textContent = `Anzahl: ${filtered.length} (von ${rows.length})`;
 
     tblBody.innerHTML = "";
-    filtered.forEach((r) => tblBody.appendChild(rowToTr(r)));
+    filtered.forEach(r => tblBody.appendChild(buildRowTr(r)));
   }
+
+  // Extend viewSelect without touching index.html options: add Trade/Position if not present
+  (function ensureViews() {
+    const existing = new Set(Array.from(viewSelect.options).map(o => o.value));
+    if (!existing.has("trade_plan")) {
+      const o = document.createElement("option");
+      o.value = "trade_plan";
+      o.textContent = "Trade Plan";
+      viewSelect.appendChild(o);
+    }
+    if (!existing.has("position_plan")) {
+      const o = document.createElement("option");
+      o.value = "position_plan";
+      o.textContent = "Position Plan";
+      viewSelect.appendChild(o);
+    }
+  })();
 
   strategySelect.addEventListener("change", loadStrategy);
   viewSelect.addEventListener("change", render);
