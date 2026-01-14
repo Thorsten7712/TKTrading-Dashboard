@@ -1,24 +1,32 @@
 // assets/app.js
 
-async function fetchText(url) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-  return await res.text();
-}
-
 async function loadJSON(url) {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   return await res.json();
 }
 
-// --- formatting ---
+async function loadText(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return await res.text();
+}
+
 function fmt(x, digits = 2) {
   if (x === null || x === undefined || Number.isNaN(x)) return "–";
   if (typeof x === "number") return x.toFixed(digits);
   const n = Number(x);
   if (!Number.isNaN(n) && String(x).trim() !== "") return n.toFixed(digits);
   return String(x);
+}
+
+function linkButton(href, label) {
+  const a = document.createElement("a");
+  a.href = href;
+  a.textContent = label;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  return a;
 }
 
 function riskBadge(flag) {
@@ -36,112 +44,6 @@ function buildEventsCell(overlay) {
   return parts.length ? parts.join(" — ") : "–";
 }
 
-function linkButton(href, label) {
-  const a = document.createElement("a");
-  a.href = href;
-  a.textContent = label;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  return a;
-}
-
-// --- CSV parsing (simple, robust enough for your ranking files) ---
-function parseCSV(text) {
-  // Supports:
-  // - commas
-  // - quoted fields with commas
-  // - newlines
-  // Not meant for exotic CSV edge cases, but good enough here.
-  const rows = [];
-  let i = 0;
-  let field = "";
-  let row = [];
-  let inQuotes = false;
-
-  while (i < text.length) {
-    const c = text[i];
-
-    if (inQuotes) {
-      if (c === '"') {
-        // escaped quote?
-        if (text[i + 1] === '"') {
-          field += '"';
-          i += 2;
-          continue;
-        }
-        inQuotes = false;
-        i += 1;
-        continue;
-      }
-      field += c;
-      i += 1;
-      continue;
-    }
-
-    if (c === '"') {
-      inQuotes = true;
-      i += 1;
-      continue;
-    }
-
-    if (c === ",") {
-      row.push(field);
-      field = "";
-      i += 1;
-      continue;
-    }
-
-    if (c === "\n") {
-      row.push(field);
-      field = "";
-      rows.push(row);
-      row = [];
-      i += 1;
-      continue;
-    }
-
-    if (c === "\r") {
-      // ignore
-      i += 1;
-      continue;
-    }
-
-    field += c;
-    i += 1;
-  }
-
-  // last field
-  if (field.length || row.length) {
-    row.push(field);
-    rows.push(row);
-  }
-
-  if (!rows.length) return [];
-  const header = rows[0].map(h => (h || "").trim());
-  const out = [];
-
-  for (let r = 1; r < rows.length; r++) {
-    const arr = rows[r];
-    if (!arr || arr.length === 0) continue;
-
-    const obj = {};
-    for (let k = 0; k < header.length; k++) {
-      const key = header[k];
-      if (!key) continue;
-      const val = (arr[k] ?? "").trim();
-
-      // numeric coercion where appropriate
-      const n = Number(val);
-      if (val === "") obj[key] = null;
-      else if (!Number.isNaN(n) && /^[+-]?\d+(\.\d+)?(e[+-]?\d+)?$/i.test(val)) obj[key] = n;
-      else obj[key] = val;
-    }
-    out.push(obj);
-  }
-
-  return out;
-}
-
 function applyFilter(rows, q) {
   if (!q) return rows;
   const s = q.toLowerCase();
@@ -151,81 +53,137 @@ function applyFilter(rows, q) {
   );
 }
 
-// --- Build stats lookup from ranking CSVs ---
-async function loadRankingsLookup({ rankingsDir, universes, trendSuffix, metaEl }) {
-  // returns Map key `${universe}__${symbol}` -> stats object
-  const map = new Map();
+// ---------------- CSV parsing ----------------
 
-  if (!rankingsDir || !Array.isArray(universes) || universes.length === 0) {
-    return map;
+function stripBOM(s) {
+  return s && s.charCodeAt(0) === 0xfeff ? s.slice(1) : s;
+}
+
+function splitCSVLine(line) {
+  const res = [];
+  let cur = "";
+  let inQ = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQ) {
+      if (c === '"') {
+        if (line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQ = false;
+        }
+      } else {
+        cur += c;
+      }
+      continue;
+    }
+    if (c === '"') {
+      inQ = true;
+      continue;
+    }
+    if (c === ",") {
+      res.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += c;
+  }
+  res.push(cur);
+  return res;
+}
+
+function parseCSV(text) {
+  const lines = stripBOM(text).replace(/\r/g, "").split("\n").filter(Boolean);
+  if (!lines.length) return [];
+  const header = splitCSVLine(lines[0]).map(h => h.trim());
+
+  const out = [];
+  for (let i = 1; i < lines.length; i++) {
+    const parts = splitCSVLine(lines[i]);
+    if (!parts.length) continue;
+    const obj = {};
+    for (let j = 0; j < header.length; j++) {
+      const key = header[j];
+      if (!key) continue;
+
+      const raw = (parts[j] ?? "").trim();
+      if (raw === "") {
+        obj[key] = null;
+        continue;
+      }
+
+      // numeric coercion (incl. scientific)
+      const n = Number(raw);
+      obj[key] = (!Number.isNaN(n) && /^[+-]?\d+(\.\d+)?(e[+-]?\d+)?$/i.test(raw)) ? n : raw;
+    }
+    out.push(obj);
+  }
+  return out;
+}
+
+// ---------------- Rankings -> stats lookup ----------------
+
+async function buildStatsLookup({ rankingsDir, universes, trendSuffix }) {
+  const map = new Map();
+  const missing = [];
+  const loaded = [];
+
+  if (!rankingsDir || !universes?.length) {
+    return { map, missing, loaded };
   }
 
-  // Normalize universes from data to file naming (you use dax/mdax/sdax/sp500)
-  const uniqUniverses = Array.from(new Set(universes.map(u => String(u).trim()).filter(Boolean)));
-
-  // Load per-universe ranking_<u>_<suffix>_score.csv
-  for (const u of uniqUniverses) {
+  for (const u of universes) {
     const url = `${rankingsDir}/ranking_${u}_${trendSuffix}_score.csv`;
-    try {
-      const csvText = await fetchText(url);
-      const rows = parseCSV(csvText);
 
-      // expected columns: symbol,trades,score,mean_R,profit_factor,...
+    try {
+      const txt = await loadText(url);
+      const rows = parseCSV(txt);
+
+      let cnt = 0;
       for (const r of rows) {
         const sym = String(r.symbol || "").trim();
         if (!sym) continue;
 
-        const stats = {
+        // THESE NAMES MATCH YOUR CSV EXACTLY:
+        // trades, score, mean_R, profit_factor
+        map.set(`${u}__${sym}`, {
           trades: r.trades ?? null,
           score: r.score ?? null,
           mean_R: r.mean_R ?? null,
-          pf: r.profit_factor ?? null,          // UI expects "pf"
-          profit_factor: r.profit_factor ?? null,
-          total_R: r.total_R ?? null,
-          median_R: r.median_R ?? null,
-          win_rate: r.win_rate ?? null,
-          avg_hold: r.avg_hold ?? null,
-          tp_rate: r.tp_rate ?? null,
-          sl_rate: r.sl_rate ?? null,
-          time_rate: r.time_rate ?? null,
-          expectancy_R: r.expectancy_R ?? null,
-        };
-
-        map.set(`${u}__${sym}`, stats);
+          pf: r.profit_factor ?? null, // PF column in UI
+        });
+        cnt++;
       }
+      loaded.push(`${u}: ${cnt}`);
     } catch (e) {
-      // Not fatal: if a universe has no ranking yet, UI still works.
-      if (metaEl) {
-        // keep it quiet, but helpful if all are missing
-        // metaEl.textContent = metaEl.textContent; // no-op
-      }
+      missing.push(`${u} (${e.message})`);
     }
   }
 
-  return map;
+  return { map, missing, loaded };
 }
 
-function enrichRowsWithStats(rows, lookup) {
-  if (!lookup || lookup.size === 0) {
-    return rows.map(r => ({ ...r, stats: r.stats ?? null }));
-  }
-
+function enrichWithStats(rows, statsMap) {
   return rows.map(r => {
     const u = String(r.universe || "").trim();
     const sym = String(r.symbol || "").trim();
-    const key = `${u}__${sym}`;
-    const stats = lookup.get(key) || r.stats || null;
+    const stats = statsMap.get(`${u}__${sym}`) || null;
     return { ...r, stats };
   });
 }
 
+// ---------------- Table rendering ----------------
+
 function rowToTr(r) {
   const tr = document.createElement("tr");
 
+  // Hold: prefer explicit hold range, else show time_stop_bars
   const hold =
     (r.hold_days_min && r.hold_days_max)
       ? `${r.hold_days_min}-${r.hold_days_max}d`
-      : (r.time_stop_bars ? `${r.time_stop_bars} bars` : "–");
+      : (r.time_stop_bars ? String(r.time_stop_bars) : "–");
 
   const cells = [
     r.universe,
@@ -235,20 +193,18 @@ function rowToTr(r) {
     fmt(r.tp),
     fmt(r.rr, 2),
     hold,
-    (r.shares ?? "–"),
+    r.shares ?? "–",
     fmt(r.risk_usd, 2),
     fmt(r.fee_usd, 2),
-    (r.stats?.trades ?? "–"),
+    r.stats?.trades ?? "–",
     fmt(r.stats?.score, 3),
     fmt(r.stats?.mean_R, 3),
     fmt(r.stats?.pf, 2),
-    buildEventsCell(r.overlay)
+    buildEventsCell(r.overlay),
   ];
 
   cells.forEach((c, idx) => {
     const td = document.createElement("td");
-
-    // events cell with risk badge if available
     if (idx === 14 && r.overlay?.risk_flag) {
       const wrap = document.createElement("div");
       wrap.style.display = "flex";
@@ -262,12 +218,13 @@ function rowToTr(r) {
     } else {
       td.textContent = (c === null || c === undefined || c === "") ? "–" : String(c);
     }
-
     tr.appendChild(td);
   });
 
   return tr;
 }
+
+// ---------------- Main ----------------
 
 async function main() {
   const metaEl = document.getElementById("meta");
@@ -293,110 +250,113 @@ async function main() {
     return;
   }
 
-  strategies.forEach(s => {
+  for (const s of strategies) {
     const opt = document.createElement("option");
     opt.value = s.id;
     opt.textContent = s.name || s.id;
     opt.dataset.path = s.path;
     strategySelect.appendChild(opt);
-  });
+  }
 
-  let current = null; // latest.json payload
+  let currentLatest = null;
   let rowsActive = [];
   let rowsEdge = [];
-  let statsLookup = new Map();
 
   async function loadStrategy() {
     const sel = strategySelect.selectedOptions[0];
-    const path = sel?.dataset?.path;
-    if (!path) return;
+    const latestPath = sel?.dataset?.path;
+    if (!latestPath) return;
 
-    metaEl.textContent = "Lade Report …";
+    metaEl.textContent = "Lade …";
     linksEl.innerHTML = "";
     tblBody.innerHTML = "";
-    current = null;
     rowsActive = [];
     rowsEdge = [];
-    statsLookup = new Map();
+    currentLatest = null;
 
+    // 1) latest.json
     try {
-      current = await loadJSON(path);
+      currentLatest = await loadJSON(latestPath);
     } catch (e) {
-      metaEl.textContent = `Report nicht ladbar (${path}): ${e.message}`;
+      metaEl.textContent = `latest.json nicht ladbar (${latestPath}): ${e.message}`;
       return;
     }
 
-    // latest.json schema you currently have:
-    const strategyId = current.strategy_id || current.strategy || "–";
-    const asof = current.asof || "–";
-    const gen = current.generated_utc || current.generated || "–";
+    const strategyId = currentLatest.strategy || sel.value;
+    const trendSuffix = currentLatest.trend_suffix || "trend_off";
+    const asof = currentLatest.asof || "–";
+    const generated = currentLatest.generated || "–";
 
-    metaEl.textContent = `asof: ${asof} • strategy: ${strategyId} • generated: ${gen}`;
-
-    // Links: support both "links" and "paths.csv"
-    const links = current.links || {};
-    const csvPaths = current.paths?.csv || {};
+    // links
+    const csv = currentLatest.paths?.csv || {};
     const linkItems = [
-      ["Candidates Active", links.candidates_active_csv || csvPaths.candidates_active],
-      ["Candidates Edge", links.candidates_edge_csv || csvPaths.candidates_edge],
-      ["Trade Plan", links.trade_plan_csv || csvPaths.trade_plan],
-      ["Position Plan", links.position_plan_csv || csvPaths.position_plan],
-      ["Archive JSON", current.paths?.archive],
+      ["Candidates Active (CSV)", csv.candidates_active],
+      ["Candidates Edge (CSV)", csv.candidates_edge],
+      ["Trade Plan (CSV)", csv.trade_plan],
+      ["Position Plan (CSV)", csv.position_plan],
+      ["Archive (JSON)", currentLatest.paths?.archive],
     ].filter(([, href]) => !!href);
 
-    linksEl.innerHTML = "";
     linkItems.forEach(([label, href]) => linksEl.appendChild(linkButton(href, label)));
 
-    // Determine where rows are stored.
-    // Prefer direct arrays if present (active/edge),
-    // else load archive and extract from snapshot.data
-    if (Array.isArray(current.active) || Array.isArray(current.edge)) {
-      rowsActive = Array.isArray(current.active) ? current.active : [];
-      rowsEdge = Array.isArray(current.edge) ? current.edge : [];
-    } else {
-      // load archive snapshot
-      const archivePath = current.paths?.archive;
-      if (archivePath) {
-        try {
-          const snap = await loadJSON(archivePath);
-          const data = snap.data || {};
-          rowsActive = Array.isArray(data.candidates_active) ? data.candidates_active : [];
-          rowsEdge = Array.isArray(data.candidates_edge) ? data.candidates_edge : [];
-        } catch (e) {
-          // fallback: try CSVs? (not needed for now)
-          rowsActive = [];
-          rowsEdge = [];
-        }
-      }
+    // 2) archive snapshot with actual rows
+    const archivePath = currentLatest.paths?.archive;
+    if (!archivePath) {
+      metaEl.textContent = `latest.json hat keinen paths.archive`;
+      return;
     }
 
-    // Load rankings & enrich
-    const rankingsDir = current.paths?.rankings_dir || `data/${strategyId}/rankings`;
-    const universes = current.universes || Array.from(new Set([...rowsActive, ...rowsEdge].map(r => r.universe).filter(Boolean)));
-    const trendSuffix = current.trend_suffix || "trend_off";
+    let snapshot;
+    try {
+      snapshot = await loadJSON(archivePath);
+    } catch (e) {
+      metaEl.textContent = `Archive nicht ladbar (${archivePath}): ${e.message}`;
+      return;
+    }
 
-    statsLookup = await loadRankingsLookup({
+    const data = snapshot.data || {};
+    rowsActive = Array.isArray(data.candidates_active) ? data.candidates_active : [];
+    rowsEdge = Array.isArray(data.candidates_edge) ? data.candidates_edge : [];
+
+    // universes from rows
+    const universes = Array.from(
+      new Set([...rowsActive, ...rowsEdge].map(r => String(r.universe || "").trim()).filter(Boolean))
+    ).sort();
+
+    // 3) rankings
+    const rankingsDir =
+      currentLatest.paths?.rankings_dir ||
+      `data/${strategyId}/rankings`;
+
+    const { map: statsMap, missing, loaded } = await buildStatsLookup({
       rankingsDir,
       universes,
-      trendSuffix,
-      metaEl
+      trendSuffix
     });
 
-    rowsActive = enrichRowsWithStats(rowsActive, statsLookup);
-    rowsEdge = enrichRowsWithStats(rowsEdge, statsLookup);
+    // 4) enrich rows
+    rowsActive = enrichWithStats(rowsActive, statsMap);
+    rowsEdge = enrichWithStats(rowsEdge, statsMap);
+
+    // Debug line in meta
+    const dbg = [];
+    dbg.push(`rankings_dir: ${rankingsDir}`);
+    dbg.push(`rankings loaded: ${statsMap.size} symbols`);
+    if (loaded.length) dbg.push(`files: ${loaded.join(", ")}`);
+    if (missing.length) dbg.push(`missing: ${missing.join(" | ")}`);
+
+    metaEl.textContent = `asof: ${asof} • strategy: ${strategyId} • generated: ${generated} • ${dbg.join(" • ")}`;
 
     render();
   }
 
   function render() {
-    if (!current) return;
-
     const view = viewSelect.value;
-    const baseRows = (view === "edge" ? rowsEdge : rowsActive);
-    const filtered = applyFilter(baseRows, search.value);
+    const base = (view === "edge") ? rowsEdge : rowsActive;
+    const filtered = applyFilter(base, search.value);
 
     title.textContent = `${(strategySelect.selectedOptions[0]?.textContent || "").trim()} — ${view === "edge" ? "Edge" : "Active"}`;
-    hint.textContent = `Anzahl: ${filtered.length} (von ${baseRows.length})`;
+    hint.textContent = `Anzahl: ${filtered.length} (von ${base.length})`;
 
     tblBody.innerHTML = "";
     filtered.forEach(r => tblBody.appendChild(rowToTr(r)));
