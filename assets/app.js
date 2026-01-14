@@ -6,17 +6,23 @@ async function loadJSON(url) {
   return await res.json();
 }
 
-async function loadText(url) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-  return await res.text();
-}
-
 function fmt(x, digits = 2) {
   if (x === null || x === undefined || Number.isNaN(x)) return "–";
   if (typeof x === "number") return x.toFixed(digits);
   const n = Number(x);
   if (!Number.isNaN(n) && String(x).trim() !== "") return n.toFixed(digits);
+  return String(x);
+}
+
+function fmtInt(x) {
+  if (x === null || x === undefined || Number.isNaN(x)) return "–";
+  const n = Number(x);
+  if (Number.isNaN(n)) return String(x);
+  return String(Math.trunc(n));
+}
+
+function safeStr(x) {
+  if (x === null || x === undefined) return "";
   return String(x);
 }
 
@@ -29,174 +35,192 @@ function linkButton(href, label) {
   return a;
 }
 
-function stripBOM(s) {
-  return s && s.charCodeAt(0) === 0xfeff ? s.slice(1) : s;
-}
-
-function splitCSVLine(line) {
-  const res = [];
-  let cur = "";
-  let inQ = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (inQ) {
-      if (c === '"') {
-        if (line[i + 1] === '"') {
-          cur += '"';
-          i++;
-        } else {
-          inQ = false;
-        }
-      } else {
-        cur += c;
-      }
-      continue;
-    }
-    if (c === '"') {
-      inQ = true;
-      continue;
-    }
-    if (c === ",") {
-      res.push(cur);
-      cur = "";
-      continue;
-    }
-    cur += c;
-  }
-  res.push(cur);
-  return res;
-}
-
-function parseCSV(text) {
-  const lines = stripBOM(text).replace(/\r/g, "").split("\n").filter(Boolean);
-  if (!lines.length) return [];
-  const header = splitCSVLine(lines[0]).map(h => h.trim());
-
-  const out = [];
-  for (let i = 1; i < lines.length; i++) {
-    const parts = splitCSVLine(lines[i]);
-    if (!parts.length) continue;
-
-    const obj = {};
-    for (let j = 0; j < header.length; j++) {
-      const key = header[j];
-      if (!key) continue;
-
-      const raw = (parts[j] ?? "").trim();
-      if (raw === "") {
-        obj[key] = null;
-        continue;
-      }
-
-      const n = Number(raw);
-      obj[key] = (!Number.isNaN(n) && /^[+-]?\d+(\.\d+)?(e[+-]?\d+)?$/i.test(raw)) ? n : raw;
-    }
-    out.push(obj);
-  }
-  return out;
-}
-
 function applyFilter(rows, q) {
   if (!q) return rows;
   const s = q.toLowerCase();
   return rows.filter(r =>
-    String(r.symbol || "").toLowerCase().includes(s) ||
-    String(r.universe || "").toLowerCase().includes(s)
+    safeStr(r.symbol).toLowerCase().includes(s) ||
+    safeStr(r.universe).toLowerCase().includes(s)
   );
 }
 
-function buildEventsCell(_overlay) {
-  // Overlay kommt später; aktuell keine Daten -> "-"
-  return "–";
+// ---------- Events/News cell helpers (optional future overlay) ----------
+function riskBadge(flag) {
+  const span = document.createElement("span");
+  span.className = "badge " + (flag || "");
+  span.textContent = flag ? String(flag).toUpperCase() : "–";
+  return span;
 }
 
-function rowToTr(r) {
+function buildEventsCell(overlay) {
+  const parts = [];
+  if (overlay?.risk_flag) parts.push(`[${overlay.risk_flag}]`);
+  if (Array.isArray(overlay?.events) && overlay.events.length) parts.push(overlay.events.join(" • "));
+  if (Array.isArray(overlay?.news) && overlay.news.length) parts.push(overlay.news.slice(0, 2).join(" • "));
+  return parts.length ? parts.join(" — ") : "–";
+}
+
+// ---------- Table schema per view ----------
+const VIEWS = {
+  active: {
+    title: "Candidates — Active",
+    getRows: (archive) => archive?.data?.candidates_active || [],
+    columns: [
+      { key: "universe", label: "Universe", render: r => safeStr(r.universe) || "–" },
+      { key: "symbol", label: "Symbol", render: r => safeStr(r.symbol) || "–" },
+
+      { key: "buy", label: "Buy", render: r => fmt(r.buy, 2) },
+      { key: "sl", label: "SL", render: r => fmt(r.sl, 2) },
+      { key: "tp", label: "TP", render: r => fmt(r.tp, 2) },
+      { key: "rr", label: "RR", render: r => fmt(r.rr, 2) },
+
+      // Hold comes from time_stop_bars in your pipeline
+      { key: "hold", label: "Hold", render: r => (r.time_stop_bars != null ? fmtInt(r.time_stop_bars) : "–") },
+
+      // Ranking stats (from enrichment)
+      { key: "trades", label: "Trades", render: r => (r.stats?.trades != null ? fmtInt(r.stats.trades) : "–") },
+      { key: "score", label: "Score", render: r => (r.stats?.score != null ? fmt(r.stats.score, 3) : "–") },
+      { key: "meanR", label: "meanR", render: r => (r.stats?.mean_R != null ? fmt(r.stats.mean_R, 3) : "–") },
+      { key: "pf", label: "PF", render: r => (r.stats?.pf != null ? fmt(r.stats.pf, 2) : "–") },
+
+      { key: "events", label: "Events/News", render: r => buildEventsCell(r.overlay) },
+    ],
+  },
+
+  edge: {
+    title: "Candidates — Edge",
+    getRows: (archive) => archive?.data?.candidates_edge || [],
+    columns: [
+      { key: "universe", label: "Universe", render: r => safeStr(r.universe) || "–" },
+      { key: "symbol", label: "Symbol", render: r => safeStr(r.symbol) || "–" },
+
+      { key: "buy", label: "Buy", render: r => fmt(r.buy, 2) },
+      { key: "sl", label: "SL", render: r => fmt(r.sl, 2) },
+      { key: "tp", label: "TP", render: r => fmt(r.tp, 2) },
+      { key: "rr", label: "RR", render: r => fmt(r.rr, 2) },
+      { key: "hold", label: "Hold", render: r => (r.time_stop_bars != null ? fmtInt(r.time_stop_bars) : "–") },
+
+      { key: "trades", label: "Trades", render: r => (r.stats?.trades != null ? fmtInt(r.stats.trades) : "–") },
+      { key: "score", label: "Score", render: r => (r.stats?.score != null ? fmt(r.stats.score, 3) : "–") },
+      { key: "meanR", label: "meanR", render: r => (r.stats?.mean_R != null ? fmt(r.stats.mean_R, 3) : "–") },
+      { key: "pf", label: "PF", render: r => (r.stats?.pf != null ? fmt(r.stats.pf, 2) : "–") },
+
+      { key: "events", label: "Events/News", render: r => buildEventsCell(r.overlay) },
+    ],
+  },
+
+  trade_plan: {
+    title: "Trade Plan",
+    getRows: (archive) => archive?.data?.trade_plan || [],
+    columns: [
+      { key: "universe", label: "Universe", render: r => safeStr(r.universe) || "–" },
+      { key: "symbol", label: "Symbol", render: r => safeStr(r.symbol) || "–" },
+      { key: "mode", label: "Mode", render: r => safeStr(r.mode) || "–" },
+
+      { key: "buy", label: "Buy", render: r => fmt(r.buy, 2) },
+      { key: "sl", label: "SL", render: r => fmt(r.sl, 2) },
+      { key: "tp", label: "TP", render: r => fmt(r.tp, 2) },
+
+      { key: "risk_per_share", label: "Risk/Share", render: r => {
+          // build_trade_plan writes risk_per_share during build, but may not keep it
+          // If not present, derive from buy - sl:
+          const v = (r.risk_per_share != null) ? r.risk_per_share : (Number(r.buy) - Number(r.sl));
+          return fmt(v, 2);
+        }
+      },
+
+      { key: "rr", label: "RR", render: r => fmt(r.rr, 2) },
+      { key: "hold", label: "Hold", render: r => (r.time_stop_bars != null ? fmtInt(r.time_stop_bars) : "–") },
+
+      // Ranking stats
+      { key: "trades", label: "Trades", render: r => (r.stats?.trades != null ? fmtInt(r.stats.trades) : "–") },
+      { key: "score", label: "Score", render: r => (r.stats?.score != null ? fmt(r.stats.score, 3) : "–") },
+      { key: "meanR", label: "meanR", render: r => (r.stats?.mean_R != null ? fmt(r.stats.mean_R, 3) : "–") },
+      { key: "pf", label: "PF", render: r => (r.stats?.pf != null ? fmt(r.stats.pf, 2) : "–") },
+    ],
+  },
+
+  position_plan: {
+    title: "Position Plan",
+    getRows: (archive) => archive?.data?.position_plan || [],
+    columns: [
+      { key: "universe", label: "Universe", render: r => safeStr(r.universe) || "–" },
+      { key: "symbol", label: "Symbol", render: r => safeStr(r.symbol) || "–" },
+      { key: "mode", label: "Mode", render: r => safeStr(r.mode) || "–" },
+
+      { key: "buy", label: "Buy", render: r => fmt(r.buy, 2) },
+      { key: "sl", label: "SL", render: r => fmt(r.sl, 2) },
+      { key: "tp", label: "TP", render: r => fmt(r.tp, 2) },
+
+      { key: "shares", label: "Shares", render: r => (r.shares != null ? fmtInt(r.shares) : "–") },
+      { key: "fee_usd", label: "Fee$", render: r => fmt(r.fee_usd, 2) },
+      { key: "cost_usd", label: "Cost$", render: r => fmt(r.cost_usd, 2) },
+      { key: "risk_usd", label: "Risk$", render: r => fmt(r.risk_usd, 2) },
+      { key: "exp_profit_usd", label: "ExpProfit$", render: r => fmt(r.exp_profit_usd, 2) },
+      { key: "cash_after_usd", label: "CashAfter$", render: r => fmt(r.cash_after_usd, 2) },
+
+      // Ranking stats
+      { key: "trades", label: "Trades", render: r => (r.stats?.trades != null ? fmtInt(r.stats.trades) : "–") },
+      { key: "score", label: "Score", render: r => (r.stats?.score != null ? fmt(r.stats.score, 3) : "–") },
+      { key: "meanR", label: "meanR", render: r => (r.stats?.mean_R != null ? fmt(r.stats.mean_R, 3) : "–") },
+      { key: "pf", label: "PF", render: r => (r.stats?.pf != null ? fmt(r.stats.pf, 2) : "–") },
+    ],
+  },
+};
+
+function buildThead(theadEl, viewKey) {
+  const view = VIEWS[viewKey];
+  theadEl.innerHTML = "";
+  const tr = document.createElement("tr");
+  view.columns.forEach(col => {
+    const th = document.createElement("th");
+    th.textContent = col.label;
+    tr.appendChild(th);
+  });
+  theadEl.appendChild(tr);
+}
+
+function rowToTr(row, viewKey) {
+  const view = VIEWS[viewKey];
   const tr = document.createElement("tr");
 
-  const hold =
-    (r.hold_days_min && r.hold_days_max)
-      ? `${r.hold_days_min}-${r.hold_days_max}d`
-      : (r.time_stop_bars ? String(r.time_stop_bars) : "–");
-
-  const cells = [
-    r.universe,
-    r.symbol,
-    fmt(r.buy),
-    fmt(r.sl),
-    fmt(r.tp),
-    fmt(r.rr, 2),
-    hold,
-    r.shares ?? "–",
-    fmt(r.risk_usd, 2),
-    fmt(r.fee_usd, 2),
-    r.stats?.trades ?? "–",
-    fmt(r.stats?.score, 3),
-    fmt(r.stats?.mean_R, 3),
-    fmt(r.stats?.pf, 2),
-    buildEventsCell(null),
-  ];
-
-  cells.forEach((c) => {
+  view.columns.forEach((col, idx) => {
     const td = document.createElement("td");
-    td.textContent = (c === null || c === undefined || c === "") ? "–" : String(c);
+
+    // Special styling for Events/News with optional badge
+    if (col.key === "events") {
+      const txt = col.render(row);
+      if (row.overlay?.risk_flag) {
+        const wrap = document.createElement("div");
+        wrap.style.display = "flex";
+        wrap.style.gap = "8px";
+        wrap.style.alignItems = "center";
+        wrap.appendChild(riskBadge(row.overlay.risk_flag));
+        const span = document.createElement("span");
+        span.textContent = txt;
+        wrap.appendChild(span);
+        td.appendChild(wrap);
+      } else {
+        td.textContent = txt;
+      }
+    } else {
+      const v = col.render(row);
+      td.textContent = (v === null || v === undefined || v === "") ? "–" : String(v);
+    }
+
     tr.appendChild(td);
   });
 
   return tr;
 }
 
-async function buildStatsLookup({ rankingsDir, universes, trendSuffix }) {
-  const map = new Map();
-  const missing = [];
-  const loaded = [];
-
-  for (const u of universes) {
-    const url = `${rankingsDir}/ranking_${u}_${trendSuffix}_score.csv`;
-    try {
-      const txt = await loadText(url);
-      const rows = parseCSV(txt);
-
-      let cnt = 0;
-      for (const r of rows) {
-        const sym = String(r.symbol || "").trim();
-        if (!sym) continue;
-
-        map.set(`${u}__${sym}`, {
-          trades: r.trades ?? null,
-          score: r.score ?? null,
-          mean_R: r.mean_R ?? null,
-          pf: r.profit_factor ?? null,
-        });
-        cnt++;
-      }
-      loaded.push(`${u}:${cnt}`);
-    } catch (e) {
-      missing.push(`${u} (${e.message})`);
-    }
-  }
-
-  return { map, missing, loaded };
-}
-
-function enrichWithStats(rows, statsMap) {
-  return rows.map(r => {
-    const u = String(r.universe || "").trim();
-    const sym = String(r.symbol || "").trim();
-    const stats = statsMap.get(`${u}__${sym}`) || null;
-    return { ...r, stats };
-  });
-}
-
-async function loadRowsFromCSV(csvUrl) {
-  const txt = await loadText(csvUrl);
-  return parseCSV(txt);
-}
-
 async function main() {
   const metaEl = document.getElementById("meta");
   const linksEl = document.getElementById("links");
-  const tblBody = document.querySelector("#tbl tbody");
+  const tbl = document.getElementById("tbl");
+  const thead = tbl.querySelector("thead");
+  const tbody = tbl.querySelector("tbody");
+
   const strategySelect = document.getElementById("strategySelect");
   const viewSelect = document.getElementById("viewSelect");
   const search = document.getElementById("search");
@@ -217,117 +241,82 @@ async function main() {
     return;
   }
 
-  for (const s of strategies) {
+  strategies.forEach(s => {
     const opt = document.createElement("option");
     opt.value = s.id;
     opt.textContent = s.name || s.id;
-    opt.dataset.path = s.path;
+    opt.dataset.path = s.path; // points to latest.json
     strategySelect.appendChild(opt);
-  }
+  });
 
-  let latest = null;
-  let rowsActive = [];
-  let rowsEdge = [];
-  let rowsTrade = [];
-  let rowsPos = [];
+  let current = {
+    latest: null,
+    archive: null,
+    strategyId: null,
+  };
 
   async function loadStrategy() {
     const sel = strategySelect.selectedOptions[0];
     const latestPath = sel?.dataset?.path;
     if (!latestPath) return;
 
-    metaEl.textContent = "Lade …";
+    metaEl.textContent = "Lade Report …";
     linksEl.innerHTML = "";
-    tblBody.innerHTML = "";
-    rowsActive = [];
-    rowsEdge = [];
-    rowsTrade = [];
-    rowsPos = [];
-    latest = null;
+    tbody.innerHTML = "";
+    current = { latest: null, archive: null, strategyId: sel.value };
 
     try {
-      latest = await loadJSON(latestPath);
+      const latest = await loadJSON(latestPath);
+
+      // latest.json uses: strategy, trend_suffix, asof, generated, paths
+      const archiveRel = latest?.paths?.archive;
+      if (!archiveRel) throw new Error(`latest.json hat kein paths.archive`);
+
+      const archive = await loadJSON(archiveRel);
+
+      current.latest = latest;
+      current.archive = archive;
+
+      metaEl.textContent =
+        `asof: ${latest.asof} • strategy: ${latest.strategy} • generated: ${latest.generated} • rankings_dir: ${latest.paths?.rankings_dir || "–"}`;
+
+      // Build CSV download links
+      linksEl.innerHTML = "";
+      const csv = latest?.paths?.csv || {};
+      const linkItems = [
+        ["Candidates Active (CSV)", csv.candidates_active],
+        ["Candidates Edge (CSV)", csv.candidates_edge],
+        ["Trade Plan (CSV)", csv.trade_plan],
+        ["Position Plan (CSV)", csv.position_plan],
+        ["Archive (JSON)", latest?.paths?.archive],
+      ].filter(([, href]) => !!href);
+
+      linkItems.forEach(([label, href]) => linksEl.appendChild(linkButton(href, label)));
+
+      render();
     } catch (e) {
-      metaEl.textContent = `latest.json nicht ladbar (${latestPath}): ${e.message}`;
+      metaEl.textContent = `Report nicht ladbar (${latestPath}): ${e.message}`;
       return;
     }
-
-    const strategyId = latest.strategy || sel.value;
-    const trendSuffix = latest.trend_suffix || "trend_off";
-    const asof = latest.asof || "–";
-    const generated = latest.generated || "–";
-
-    const csv = latest.paths?.csv || {};
-    const rankingsDir = latest.paths?.rankings_dir || `data/${strategyId}/rankings`;
-
-    // Links
-    const linkItems = [
-      ["Candidates Active (CSV)", csv.candidates_active],
-      ["Candidates Edge (CSV)", csv.candidates_edge],
-      ["Trade Plan (CSV)", csv.trade_plan],
-      ["Position Plan (CSV)", csv.position_plan],
-      ["Archive (JSON)", latest.paths?.archive],
-    ].filter(([, href]) => !!href);
-
-    linkItems.forEach(([label, href]) => linksEl.appendChild(linkButton(href, label)));
-
-    // Load CSV rows (do NOT depend on archive JSON)
-    try {
-      if (csv.candidates_active) rowsActive = await loadRowsFromCSV(csv.candidates_active);
-      if (csv.candidates_edge) rowsEdge = await loadRowsFromCSV(csv.candidates_edge);
-      if (csv.trade_plan) rowsTrade = await loadRowsFromCSV(csv.trade_plan);
-      if (csv.position_plan) rowsPos = await loadRowsFromCSV(csv.position_plan);
-    } catch (e) {
-      metaEl.textContent = `CSV nicht ladbar: ${e.message}`;
-      return;
-    }
-
-    // Universes present
-    const universes = Array.from(
-      new Set([...rowsActive, ...rowsEdge, ...rowsTrade, ...rowsPos].map(r => String(r.universe || "").trim()).filter(Boolean))
-    ).sort();
-
-    // Rankings
-    const { map: statsMap, missing, loaded } = await buildStatsLookup({
-      rankingsDir,
-      universes,
-      trendSuffix,
-    });
-
-    rowsActive = enrichWithStats(rowsActive, statsMap);
-    rowsEdge = enrichWithStats(rowsEdge, statsMap);
-    rowsTrade = enrichWithStats(rowsTrade, statsMap);
-    rowsPos = enrichWithStats(rowsPos, statsMap);
-
-    const dbg = [];
-    dbg.push(`rankings_dir: ${rankingsDir}`);
-    dbg.push(`rankings loaded: ${statsMap.size}`);
-    if (loaded.length) dbg.push(`files: ${loaded.join(", ")}`);
-    if (missing.length) dbg.push(`missing: ${missing.join(" | ")}`);
-
-    metaEl.textContent = `asof: ${asof} • strategy: ${strategyId} • generated: ${generated} • ${dbg.join(" • ")}`;
-
-    render();
-  }
-
-  function getRowsForView(view) {
-    if (view === "edge") return rowsEdge;
-    if (view === "trade") return rowsTrade;
-    if (view === "pos") return rowsPos;
-    return rowsActive;
   }
 
   function render() {
-    const view = viewSelect.value; // active|edge
-    const rows = getRowsForView(view);
+    if (!current.latest || !current.archive) return;
+
+    const viewKey = viewSelect.value;
+    const view = VIEWS[viewKey];
+    if (!view) return;
+
+    buildThead(thead, viewKey);
+
+    const rows = view.getRows(current.archive);
     const filtered = applyFilter(rows, search.value);
 
-    const stratName = (strategySelect.selectedOptions[0]?.textContent || "").trim();
-    title.textContent = `${stratName} — ${view === "edge" ? "Edge" : "Active"}`;
+    title.textContent = `${strategySelect.selectedOptions[0]?.textContent || current.strategyId} — ${view.title}`;
     hint.textContent = `Anzahl: ${filtered.length} (von ${rows.length})`;
 
-    tblBody.innerHTML = "";
-    filtered.forEach(r => tblBody.appendChild(rowToTr(r)));
+    tbody.innerHTML = "";
+    filtered.forEach(r => tbody.appendChild(rowToTr(r, viewKey)));
   }
 
   strategySelect.addEventListener("change", loadStrategy);
