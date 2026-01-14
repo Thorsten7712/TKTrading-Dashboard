@@ -1,0 +1,23 @@
+{
+  "strategy": "trend_pulse",
+  "trend_suffix": "trend_off",
+  "updated": "2026-01-14T08:07:29Z",
+  "schema": {
+    "latest": [
+      "strategy",
+      "trend_suffix",
+      "asof",
+      "generated",
+      "paths",
+      "counts"
+    ],
+    "archive": [
+      "strategy",
+      "trend_suffix",
+      "asof",
+      "generated",
+      "counts",
+      "data"
+    ]
+  }
+}
