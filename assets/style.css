@@ -1,348 +1,212 @@
-/* assets/style.css
-   TKTrading Dashboard (static)
-   - default: light theme (white background, black text)
-   - optional: .theme-dark on <html> or <body> for dark theme
-   - supports ranking "Ampel" dots:
-     .rank-top (>= 3.0), .rank-green (1.5-<3.0), .rank-yellow (0.5-<1.5), .rank-red (<0.5), .rank-na (grey)
-*/
-
-/* -----------------------------
-   Theme tokens
------------------------------ */
-
-:root {
+:root{
   --bg: #ffffff;
-  --panel: #ffffff;
-  --text: #111111;
-  --muted: #666666;
+  --fg: #111111;
+  --muted: #5b5b5b;
+  --card: #ffffff;
   --border: #e6e6e6;
-  --shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
-
-  --link: #0b63ce;
-  --link-hover: #084a9a;
-
-  --control-bg: #ffffff;
-  --control-border: #cfcfcf;
-  --control-text: #111111;
-
-  --table-head: #f6f6f6;
-  --table-hover: #fafafa;
-
-  /* Rank dot colors */
-  --rank-top: #1a7f37;
-  --rank-green: #2ea043;
-  --rank-yellow: #d29922;
-  --rank-red: #cf222e;
-  --rank-na: #9aa0a6;
-
-  /* Focus ring */
-  --focus: rgba(11, 99, 206, 0.25);
+  --shadow: 0 1px 10px rgba(0,0,0,0.06);
+  --accent: #2563eb;
 }
 
-/* Optional dark theme: add class theme-dark to html or body */
-.theme-dark {
-  --bg: #0f1115;
-  --panel: #131720;
-  --text: #f3f4f6;
-  --muted: #a8b0bd;
-  --border: #2a3140;
-  --shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
-
-  --link: #7ab7ff;
-  --link-hover: #a9d1ff;
-
-  --control-bg: #0f1115;
-  --control-border: #364155;
-  --control-text: #f3f4f6;
-
-  --table-head: #171c26;
-  --table-hover: #121826;
-
-  --rank-top: #3fb950;
-  --rank-green: #2ea043;
-  --rank-yellow: #d29922;
-  --rank-red: #ff5c5c;
-  --rank-na: #7d8590;
-
-  --focus: rgba(122, 183, 255, 0.28);
-}
-
-/* -----------------------------
-   Base
------------------------------ */
-
-* { box-sizing: border-box; }
-
-html, body {
-  height: 100%;
-}
-
-body {
+*{ box-sizing: border-box; }
+html, body { height: 100%; }
+body{
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
   background: var(--bg);
-  line-height: 1.35;
+  color: var(--fg);
 }
 
-/* Make links readable in both themes */
-a {
-  color: var(--link);
-  text-decoration: none;
-}
-a:hover {
-  color: var(--link-hover);
-  text-decoration: underline;
-}
-
-/* -----------------------------
-   Layout helpers
------------------------------ */
-
-.wrap {
-  max-width: 1200px;
+.wrap{
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 18px;
+  padding: 18px 18px;
 }
 
-header.wrap {
-  padding-top: 22px;
-  padding-bottom: 10px;
-}
-
-.title {
+.titlebar{
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-h1 {
+h1{
   margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
-.meta {
+.meta{
+  margin-top: 8px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 16px;
 }
 
-/* -----------------------------
-   Controls / toolbar
------------------------------ */
-
-.controls {
+.controls-grid{
+  margin-top: 18px;
   display: grid;
-  grid-template-columns: 1fr 1fr 1.2fr;
-  gap: 12px;
-  margin-top: 14px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
   align-items: end;
 }
 
-.controls label {
-  display: flex;
-  flex-direction: column;
+.control{
+  display: grid;
   gap: 6px;
-  font-size: 13px;
+}
+
+.label{
   color: var(--muted);
-}
-
-select, input[type="search"], button {
-  appearance: none;
-  background: var(--control-bg);
-  color: var(--control-text);
-  border: 1px solid var(--control-border);
-  border-radius: 10px;
-  padding: 10px 12px;
   font-size: 14px;
-  outline: none;
 }
 
-select:focus, input[type="search"]:focus, button:focus {
-  box-shadow: 0 0 0 4px var(--focus);
-  border-color: var(--link);
-}
-
-input[type="search"]::placeholder {
-  color: color-mix(in srgb, var(--muted), transparent 25%);
-}
-
-@media (max-width: 860px) {
-  .controls {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* -----------------------------
-   Links row
------------------------------ */
-
-.links {
-  margin-top: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.links a {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+select, input[type="search"]{
+  width: 100%;
+  height: 42px;
+  border-radius: 12px;
   border: 1px solid var(--border);
+  padding: 0 12px;
+  font-size: 16px;
+  background: #fff;
+  color: var(--fg);
+}
+
+select:focus, input[type="search"]:focus{
+  outline: 3px solid rgba(37, 99, 235, 0.25);
+  border-color: rgba(37, 99, 235, 0.5);
+}
+
+.control.checkbox{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 26px;
+}
+.control.checkbox input{
+  width: 18px;
+  height: 18px;
+}
+
+.links{
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.links a{
+  text-decoration: none;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  padding: 10px 14px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel), var(--bg) 40%);
-  text-decoration: none;
-  font-size: 13px;
+  background: #fff;
 }
 
-.links a:hover {
-  background: color-mix(in srgb, var(--panel), var(--link) 8%);
-  text-decoration: none;
-}
-
-/* -----------------------------
-   Cards
------------------------------ */
-
-.card {
-  background: var(--panel);
+.card{
+  margin-top: 18px;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 18px;
   box-shadow: var(--shadow);
-  padding: 14px 14px 10px 14px;
+  padding: 16px;
 }
 
-h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
+.card-head{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.hint {
-  margin-top: 6px;
+h2{
+  margin: 0 0 6px 0;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.hint{
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 16px;
 }
 
-/* -----------------------------
-   Table
------------------------------ */
-
-.table-wrap {
-  margin-top: 12px;
+.table-wrap{
+  margin-top: 10px;
   overflow: auto;
   border-radius: 14px;
   border: 1px solid var(--border);
 }
 
-table {
+table{
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  min-width: 980px; /* keep columns readable */
+  border-collapse: collapse;
+  min-width: 940px;
+  background: #fff;
 }
 
-thead th {
+thead th{
   position: sticky;
   top: 0;
-  z-index: 1;
-  background: var(--table-head);
-  color: var(--muted);
+  background: #f6f7f9;
+  border-bottom: 1px solid var(--border);
   font-weight: 700;
-  font-size: 12.5px;
+  color: #4b5563;
+  padding: 12px 12px;
   text-align: left;
-  padding: 10px 10px;
-  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
-tbody td {
-  padding: 10px 10px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13.5px;
+tbody td{
+  border-top: 1px solid var(--border);
+  padding: 12px 12px;
   white-space: nowrap;
 }
 
-tbody tr:hover td {
-  background: var(--table-hover);
-}
-
-th.num, td.num {
+th.num, td.num{
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-/* Symbol cell layout when dot is present */
-td.symbol > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+th.sortable{
+  cursor: pointer;
+  user-select: none;
+}
+th.sortable .sort-arrow{
+  margin-left: 8px;
+  opacity: 0.6;
+  font-size: 12px;
+}
+th.sortable.sorted .sort-arrow{
+  opacity: 1;
 }
 
-/* -----------------------------
-   Rank dot (Ampel)
------------------------------ */
+td.symbol .symbol-wrap{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
 
-.rank-dot {
+.rank-dot{
   width: 11px;
   height: 11px;
   border-radius: 999px;
   display: inline-block;
-  flex: 0 0 auto;
-  border: 1px solid color-mix(in srgb, var(--border), #000 12%);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel), transparent 70%);
+  border: 1px solid rgba(0,0,0,0.15);
 }
 
-/* >= 3.0 */
-.rank-top {
-  background: var(--rank-top);
+.rank-red{ background: #d92d20; }
+.rank-yellow{ background: #fdb022; }
+.rank-green{ background: #12b76a; }
+.rank-strong{ background: #067647; }
+.rank-na{ background: #98a2b3; }
+
+tr.gate-fail{
+  opacity: 0.6;
 }
 
-/* 1.5 - < 3.0 */
-.rank-green {
-  background: var(--rank-green);
-}
-
-/* 0.5 - < 1.5 */
-.rank-yellow {
-  background: var(--rank-yellow);
-}
-
-/* < 0.5 */
-.rank-red {
-  background: var(--rank-red);
-}
-
-/* no ranking / too few trades / missing score */
-.rank-na {
-  background: var(--rank-na);
-}
-
-/* -----------------------------
-   Footer
------------------------------ */
-
-.footer {
-  padding: 14px 18px 26px 18px;
+.footer{
+  margin-top: 16px;
   color: var(--muted);
-  font-size: 12.5px;
-}
-
-/* -----------------------------
-   Small polish
------------------------------ */
-
-::selection {
-  background: color-mix(in srgb, var(--link), transparent 70%);
-}
-
-/* Reduce motion for accessibility */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    scroll-behavior: auto !important;
-    transition: none !important;
-    animation: none !important;
-  }
+  font-size: 14px;
 }
