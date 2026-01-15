@@ -1,17 +1,21 @@
 // assets/app.js
 // Dashboard Explorer (static GitHub Pages)
 //
-// Features:
-// - loads data/manifest.json -> latest.json -> archive.json
-// - views: candidates active/edge, trade plan, position plan
-// - ranking traffic-light marker (red/yellow/green) per ticker based on stats.score (quantiles)
-// - theme toggle (light/dark) with localStorage persistence
-// - numeric columns right-aligned via td.num / th.num (needs CSS in style.css)
-// - symbol column shows a colored dot + symbol
-
-// -----------------------------
-// Fetch + JSON helpers
-// -----------------------------
+// Loads:
+//   data/manifest.json -> latest.json -> archive.json
+//
+// Views:
+//   - candidates active
+//   - candidates edge
+//   - trade plan
+//   - position plan
+//
+// Ranking Ampel:
+//   score < 0.5           => red
+//   0.5 <= score < 1.5    => yellow
+//   1.5 <= score < 3.0    => green
+//   score >= 3.0          => top (green variant)
+// Tooltip on dot shows: score, trades, mean_R, profit_factor
 
 async function fetchText(url) {
   const res = await fetch(url, { cache: "no-store" });
@@ -24,15 +28,10 @@ async function loadJSON(url) {
   try {
     return JSON.parse(txt);
   } catch (e) {
-    // Helpful debug for GitHub Pages / invalid JSON (e.g. NaN, Infinity, trailing commas)
     const head = txt.slice(0, 400).replace(/\s+/g, " ").trim();
     throw new Error(`JSON parse failed for ${url}: ${e.message}. Head: ${head}`);
   }
 }
-
-// -----------------------------
-// Formatting + parsing
-// -----------------------------
 
 function fmt(x, digits = 2) {
   if (x === null || x === undefined || Number.isNaN(x)) return "–";
@@ -51,51 +50,9 @@ function toNum(x) {
   return Number.isFinite(n) ? n : null;
 }
 
-// -----------------------------
-// DOM helpers
-// -----------------------------
-
 function clearEl(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
-
-// -----------------------------
-// Theme toggle (light/dark)
-// -----------------------------
-
-const THEME_KEY = "tk_theme";
-
-function applyTheme(theme) {
-  const t = (theme === "dark") ? "dark" : "light";
-  // Light = default (no attribute). Dark via data-theme="dark"
-  if (t === "dark") {
-    document.documentElement.setAttribute("data-theme", "dark");
-  } else {
-    document.documentElement.removeAttribute("data-theme");
-  }
-  return t;
-}
-
-function loadSavedTheme() {
-  try {
-    const v = localStorage.getItem(THEME_KEY);
-    return (v === "dark" || v === "light") ? v : "light";
-  } catch {
-    return "light";
-  }
-}
-
-function saveTheme(theme) {
-  try {
-    localStorage.setItem(THEME_KEY, theme);
-  } catch {
-    // ignore
-  }
-}
-
-// -----------------------------
-// Overlay / Events cell
-// -----------------------------
 
 function buildEventsCell(overlay) {
   if (!overlay) return "–";
@@ -105,10 +62,6 @@ function buildEventsCell(overlay) {
   if (Array.isArray(overlay.news) && overlay.news.length) parts.push(overlay.news.slice(0, 2).join(" • "));
   return parts.length ? parts.join(" — ") : "–";
 }
-
-// -----------------------------
-// Filtering
-// -----------------------------
 
 function applyFilter(rows, q) {
   if (!q) return rows;
@@ -120,71 +73,11 @@ function applyFilter(rows, q) {
 }
 
 // -----------------------------
-// Ranking Ampel (quantiles)
+// Stats / RR
 // -----------------------------
-
-function quantile(sortedArr, q) {
-  if (!sortedArr.length) return null;
-  const pos = (sortedArr.length - 1) * q;
-  const base = Math.floor(pos);
-  const rest = pos - base;
-  if (sortedArr[base + 1] === undefined) return sortedArr[base];
-  return sortedArr[base] + rest * (sortedArr[base + 1] - sortedArr[base]);
-}
-
-function buildScoreThresholds(rows, minTrades = 20) {
-  // Prefer score values that also meet minTrades, but fall back if too few exist.
-  const allScores = rows
-    .map(r => toNum(r?.stats?.score))
-    .filter(v => typeof v === "number" && Number.isFinite(v));
-
-  const filteredScores = [];
-  for (let i = 0; i < rows.length; i++) {
-    const sc = toNum(rows[i]?.stats?.score);
-    if (sc === null) continue;
-    const t = toNum(rows[i]?.stats?.trades);
-    if (typeof t === "number" && t < minTrades) continue;
-    filteredScores.push(sc);
-  }
-
-  const use = filteredScores.length ? filteredScores : allScores;
-  const arr = use.slice().sort((a, b) => a - b);
-
-  if (!arr.length) return { q33: null, q66: null };
-  return { q33: quantile(arr, 0.33), q66: quantile(arr, 0.66) };
-}
-
-function rankClassForRow(row, thresholds, minTrades = 20) {
-  const score = toNum(row?.stats?.score);
-  const trades = toNum(row?.stats?.trades);
-
-  if (score === null) return "rank-na";
-  if (typeof trades === "number" && trades < minTrades) return "rank-na";
-  if (thresholds?.q33 == null || thresholds?.q66 == null) return "rank-na";
-
-  if (score >= thresholds.q66) return "rank-green";
-  if (score >= thresholds.q33) return "rank-yellow";
-  return "rank-red";
-}
-
-// -----------------------------
-// Table helpers
-// -----------------------------
-
-function setTableHeader(thead, cols) {
-  // cols: [{ key, label, numeric? }]
-  clearEl(thead);
-  const tr = document.createElement("tr");
-  cols.forEach(c => {
-    const th = document.createElement("th");
-    th.textContent = c.label;
-    if (c.numeric) th.className = "num";
-    tr.appendChild(th);
-  });
-  thead.appendChild(tr);
-}
 
 function normalizeStats(stats) {
+  // export_dashboard enrichment: { trades, score, mean_R, pf/profit_factor, ... }
   if (!stats) return null;
   return {
     trades: toNum(stats.trades),
@@ -213,6 +106,46 @@ function pickRowsFromArchive(archive, view) {
   if (view === "trade_plan") return data.trade_plan || [];
   if (view === "position_plan") return data.position_plan || [];
   return [];
+}
+
+// -----------------------------
+// Ampel (fixed score bins)
+// -----------------------------
+
+function rankClassForScore(score) {
+  if (score === null) return "rank-na";
+  if (score < 0.5) return "rank-red";
+  if (score < 1.5) return "rank-yellow";
+  if (score < 3.0) return "rank-green";
+  return "rank-top";
+}
+
+function buildRankTooltip(row) {
+  const s = normalizeStats(row?.stats);
+  if (!s) return "Ranking: keine Daten";
+  const parts = [];
+  parts.push(`Score: ${s.score === null ? "–" : fmt(s.score, 3)}`);
+  parts.push(`Trades: ${s.trades === null ? "–" : fmt(s.trades, 0)}`);
+  parts.push(`mean_R: ${s.meanR === null ? "–" : fmt(s.meanR, 3)}`);
+  parts.push(`PF: ${s.pf === null ? "–" : fmt(s.pf, 2)}`);
+  return parts.join(" • ");
+}
+
+// -----------------------------
+// Table helpers
+// -----------------------------
+
+function setTableHeader(thead, cols) {
+  // cols: [{ key, label, numeric? }]
+  clearEl(thead);
+  const tr = document.createElement("tr");
+  cols.forEach(c => {
+    const th = document.createElement("th");
+    th.textContent = c.label;
+    if (c.numeric) th.className = "num";
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
 }
 
 function buildLinks(linksEl, latest) {
@@ -386,23 +319,31 @@ function buildViewConfig(view) {
   };
 }
 
-function renderRowWithAmpel(row, cfg, thresholds, minTrades = 20) {
+// -----------------------------
+// Row render (with Ampel dot in Symbol cell)
+// -----------------------------
+
+function renderRowWithAmpel(row, cfg) {
   const tr = document.createElement("tr");
 
   cfg.cols.forEach(col => {
     const td = document.createElement("td");
     if (col.numeric) td.classList.add("num");
 
-    // Symbol cell -> rank dot + symbol text
     if (col.key === "symbol") {
       td.classList.add("symbol");
+
       const wrap = document.createElement("div");
       wrap.style.display = "flex";
       wrap.style.alignItems = "center";
       wrap.style.gap = "8px";
 
+      const s = normalizeStats(row?.stats);
+      const score = s ? s.score : null;
+
       const dot = document.createElement("span");
-      dot.className = "rank-dot " + rankClassForRow(row, thresholds, minTrades);
+      dot.className = "rank-dot " + rankClassForScore(score);
+      dot.title = buildRankTooltip(row); // native tooltip
       wrap.appendChild(dot);
 
       const txt = document.createElement("span");
@@ -435,23 +376,9 @@ async function main() {
 
   const strategySelect = document.getElementById("strategySelect");
   const viewSelect = document.getElementById("viewSelect");
-  const themeSelect = document.getElementById("themeSelect");
   const search = document.getElementById("search");
   const titleEl = document.getElementById("tableTitle");
   const hintEl = document.getElementById("hint");
-
-  // Theme init (default light)
-  if (themeSelect) {
-    const initialTheme = applyTheme(loadSavedTheme());
-    themeSelect.value = initialTheme;
-    themeSelect.addEventListener("change", () => {
-      const t = applyTheme(themeSelect.value);
-      saveTheme(t);
-    });
-  } else {
-    // even if the select isn't present, still apply saved theme
-    applyTheme(loadSavedTheme());
-  }
 
   let manifest;
   try {
@@ -471,7 +398,7 @@ async function main() {
     const opt = document.createElement("option");
     opt.value = s.id;
     opt.textContent = s.name || s.id;
-    opt.dataset.path = s.path; // latest.json
+    opt.dataset.path = s.path; // latest.json path
     strategySelect.appendChild(opt);
   });
 
@@ -493,7 +420,6 @@ async function main() {
     latest = null;
     archive = null;
 
-    // 1) latest.json
     try {
       latest = await loadJSON(latestPath);
     } catch (e) {
@@ -501,7 +427,6 @@ async function main() {
       return;
     }
 
-    // 2) archive json (contains the actual rows + stats)
     const archivePath = latest?.paths?.archive;
     if (!archivePath) {
       metaEl.textContent = `latest.json hat keinen paths.archive: ${latestPath}`;
@@ -518,11 +443,9 @@ async function main() {
     const asof = archive?.asof ?? latest?.asof ?? "–";
     const strat = archive?.strategy ?? latest?.strategy ?? sel?.value ?? "–";
     const gen = archive?.generated ?? latest?.generated ?? "–";
-
     metaEl.textContent = `asof: ${asof} • strategy: ${strat} • generated: ${gen}`;
 
     buildLinks(linksEl, latest);
-
     render();
   }
 
@@ -539,15 +462,10 @@ async function main() {
 
     hintEl.textContent = `Anzahl: ${filtered.length} (von ${rows.length})`;
 
-    // Ranking thresholds computed on full rows (not filtered)
-    const thresholds = buildScoreThresholds(rows, 20);
-
     setTableHeader(thead, cfg.cols);
 
     clearEl(tbody);
-    filtered.forEach(r => {
-      tbody.appendChild(renderRowWithAmpel(r, cfg, thresholds, 20));
-    });
+    filtered.forEach(r => tbody.appendChild(renderRowWithAmpel(r, cfg)));
   }
 
   strategySelect.addEventListener("change", loadStrategy);
