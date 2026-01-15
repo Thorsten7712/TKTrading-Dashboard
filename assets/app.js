@@ -1,23 +1,10 @@
 // assets/app.js
-// TKTrading Dashboard Explorer (static GitHub Pages)
-//
-// Loads: data/manifest.json -> strategy latest.json -> archive.json
-// Views: candidates active/edge, trade plan, position plan
-// Features:
-// - fixed score-based "Ampel" (rank dot) with tooltip
-// - trade gate: if trades < MIN_TRADES => rank-na (grey)
-// - sorting: best first (Top/Green/Yellow/Red/Grey), then score desc, trades desc, universe+symbol
-// - robust JSON parsing debug (shows head if JSON invalid)
-//
-// Requires CSS classes (expected in style.css):
-// .rank-dot, .rank-top, .rank-green, .rank-yellow, .rank-red, .rank-na
-// .num (right-align), td.symbol (optional)
-
-const MIN_TRADES = 20;
-
-// -----------------------------
-// Fetch + JSON parsing helpers
-// -----------------------------
+// TKTrading Dashboard (static)
+// - loads data/manifest.json -> latest.json -> archive.json
+// - views: candidates active/edge, trade plan, position plan
+// - ranking dot + tooltip based on stats.score thresholds
+// - trade gates: preset dropdown + only-passes toggle
+// - sorting: click headers to sort asc/desc; numeric aware; default per view
 
 async function fetchText(url) {
   const res = await fetch(url, { cache: "no-store" });
@@ -30,14 +17,10 @@ async function loadJSON(url) {
   try {
     return JSON.parse(txt);
   } catch (e) {
-    const head = txt.slice(0, 500).replace(/\s+/g, " ").trim();
+    const head = txt.slice(0, 400).replace(/\s+/g, " ").trim();
     throw new Error(`JSON parse failed for ${url}: ${e.message}. Head: ${head}`);
   }
 }
-
-// -----------------------------
-// Formatting / numeric helpers
-// -----------------------------
 
 function fmt(x, digits = 2) {
   if (x === null || x === undefined || Number.isNaN(x)) return "–";
@@ -60,7 +43,7 @@ function clearEl(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
-function applyFilter(rows, q) {
+function applyTextFilter(rows, q) {
   if (!q) return rows;
   const s = q.toLowerCase();
   return rows.filter(r =>
@@ -68,10 +51,6 @@ function applyFilter(rows, q) {
     String(r.universe || "").toLowerCase().includes(s)
   );
 }
-
-// -----------------------------
-// Optional overlay (events/news)
-// -----------------------------
 
 function buildEventsCell(overlay) {
   if (!overlay) return "–";
@@ -82,10 +61,6 @@ function buildEventsCell(overlay) {
   return parts.length ? parts.join(" — ") : "–";
 }
 
-// -----------------------------
-// Stats normalization (from export_dashboard enrichment)
-// -----------------------------
-
 function normalizeStats(stats) {
   if (!stats) return null;
   return {
@@ -95,10 +70,6 @@ function normalizeStats(stats) {
     pf: toNum(stats.pf ?? stats.profit_factor),
   };
 }
-
-// -----------------------------
-// RR computation
-// -----------------------------
 
 function computeRR(row) {
   const rr = toNum(row.rr);
@@ -112,175 +83,6 @@ function computeRR(row) {
   return (tp - buy) / risk;
 }
 
-// -----------------------------
-// Ampel (fixed thresholds) + tooltip
-// -----------------------------
-
-function rankBucket(row) {
-  // returns: "top" | "green" | "yellow" | "red" | "na"
-  const s = normalizeStats(row?.stats);
-  if (!s) return "na";
-
-  // Trade gate
-  if (typeof s.trades === "number" && s.trades < MIN_TRADES) return "na";
-
-  const score = s.score;
-  if (score === null) return "na";
-
-  if (score >= 3.0) return "top";
-  if (score >= 1.5) return "green";
-  if (score >= 0.5) return "yellow";
-  return "red"; // < 0.5
-}
-
-function rankClass(row) {
-  const b = rankBucket(row);
-  if (b === "top") return "rank-top";
-  if (b === "green") return "rank-green";
-  if (b === "yellow") return "rank-yellow";
-  if (b === "red") return "rank-red";
-  return "rank-na";
-}
-
-function rankWeight(row) {
-  // higher = better
-  const b = rankBucket(row);
-  if (b === "top") return 4;
-  if (b === "green") return 3;
-  if (b === "yellow") return 2;
-  if (b === "red") return 1;
-  return 0; // na
-}
-
-function tooltipText(row) {
-  const s = normalizeStats(row?.stats);
-  const trades = s?.trades;
-  const score = s?.score;
-
-  if (!s) return "Kein Ranking verfügbar";
-  if (typeof trades === "number" && trades < MIN_TRADES) {
-    return `Grau: zu wenige Trades (${trades} < ${MIN_TRADES})`;
-  }
-  if (score === null) return "Grau: kein Score";
-
-  const bucket = rankBucket(row);
-  if (bucket === "top") return `TOP: Score ≥ 3.0 (Score: ${fmt(score, 3)}, Trades: ${fmt(trades, 0)})`;
-  if (bucket === "green") return `Grün: 1.5–<3.0 (Score: ${fmt(score, 3)}, Trades: ${fmt(trades, 0)})`;
-  if (bucket === "yellow") return `Gelb: 0.5–<1.5 (Score: ${fmt(score, 3)}, Trades: ${fmt(trades, 0)})`;
-  if (bucket === "red") return `Rot: < 0.5 (Score: ${fmt(score, 3)}, Trades: ${fmt(trades, 0)})`;
-  return "Grau";
-}
-
-// -----------------------------
-// Sorting
-// -----------------------------
-
-function compareStr(a, b) {
-  const aa = String(a ?? "");
-  const bb = String(b ?? "");
-  return aa.localeCompare(bb);
-}
-
-function scoreForSort(row) {
-  const s = normalizeStats(row?.stats);
-  if (!s) return null;
-  if (typeof s.trades === "number" && s.trades < MIN_TRADES) return null;
-  return s.score;
-}
-
-function tradesForSort(row) {
-  const s = normalizeStats(row?.stats);
-  return s?.trades ?? null;
-}
-
-function sortRows(rows) {
-  const arr = rows.slice();
-  arr.sort((a, b) => {
-    // 1) Ampel weight desc
-    const wa = rankWeight(a);
-    const wb = rankWeight(b);
-    if (wa !== wb) return wb - wa;
-
-    // 2) score desc (nulls last)
-    const sa = scoreForSort(a);
-    const sb = scoreForSort(b);
-    if (sa === null && sb !== null) return 1;
-    if (sa !== null && sb === null) return -1;
-    if (sa !== null && sb !== null && sa !== sb) return sb - sa;
-
-    // 3) trades desc (nulls last)
-    const ta = tradesForSort(a);
-    const tb = tradesForSort(b);
-    if (ta === null && tb !== null) return 1;
-    if (ta !== null && tb === null) return -1;
-    if (ta !== null && tb !== null && ta !== tb) return tb - ta;
-
-    // 4) universe asc, symbol asc
-    const cu = compareStr(a.universe, b.universe);
-    if (cu !== 0) return cu;
-    return compareStr(a.symbol, b.symbol);
-  });
-  return arr;
-}
-
-// -----------------------------
-// Table helpers
-// -----------------------------
-
-function setTableHeader(thead, cols) {
-  // cols: [{ key, label, numeric? }]
-  clearEl(thead);
-  const tr = document.createElement("tr");
-  cols.forEach(c => {
-    const th = document.createElement("th");
-    th.textContent = c.label;
-    if (c.numeric) th.classList.add("num");
-    tr.appendChild(th);
-  });
-  thead.appendChild(tr);
-}
-
-function renderRow(row, cfg) {
-  const tr = document.createElement("tr");
-
-  cfg.cols.forEach(col => {
-    const td = document.createElement("td");
-    if (col.numeric) td.classList.add("num");
-
-    if (col.key === "symbol") {
-      td.classList.add("symbol");
-      const wrap = document.createElement("div");
-      wrap.style.display = "flex";
-      wrap.style.alignItems = "center";
-      wrap.style.gap = "8px";
-
-      const dot = document.createElement("span");
-      dot.className = "rank-dot " + rankClass(row);
-      dot.title = tooltipText(row); // tooltip
-      wrap.appendChild(dot);
-
-      const txt = document.createElement("span");
-      const val = cfg.renderers?.symbol ? cfg.renderers.symbol(row) : (row.symbol ?? "–");
-      txt.textContent = (val === null || val === undefined || val === "") ? "–" : String(val);
-      wrap.appendChild(txt);
-
-      td.appendChild(wrap);
-    } else {
-      const renderer = cfg.renderers?.[col.key];
-      const val = renderer ? renderer(row) : row[col.key];
-      td.textContent = (val === null || val === undefined || val === "") ? "–" : String(val);
-    }
-
-    tr.appendChild(td);
-  });
-
-  return tr;
-}
-
-// -----------------------------
-// Data pickers (archive schema)
-// -----------------------------
-
 function pickRowsFromArchive(archive, view) {
   const data = archive?.data || {};
   if (view === "active") return data.candidates_active || [];
@@ -289,10 +91,6 @@ function pickRowsFromArchive(archive, view) {
   if (view === "position_plan") return data.position_plan || [];
   return [];
 }
-
-// -----------------------------
-// Links
-// -----------------------------
 
 function buildLinks(linksEl, latest) {
   clearEl(linksEl);
@@ -316,51 +114,180 @@ function buildLinks(linksEl, latest) {
   });
 }
 
-// -----------------------------
-// View configs
-// -----------------------------
+// ---------------------------------------------------------
+// Ampel (fixed thresholds as requested)
+// <0.5 red, 0.5-1.5 yellow, 1.5-3 green, >=3 strong green
+// ---------------------------------------------------------
+function scoreBand(score) {
+  if (score === null) return { cls: "rank-na", label: "Kein Ranking" };
+  if (score < 0.5) return { cls: "rank-red", label: "Score < 0.5 (rot)" };
+  if (score < 1.5) return { cls: "rank-yellow", label: "0.5–1.5 (gelb)" };
+  if (score < 3.0) return { cls: "rank-green", label: "1.5–3.0 (grün)" };
+  return { cls: "rank-strong", label: "≥ 3.0 (sehr grün)" };
+}
 
+function tooltipText(row, gateInfo) {
+  const s = normalizeStats(row.stats);
+  const parts = [];
+  if (!s) {
+    parts.push("Kein Ranking verfügbar");
+  } else {
+    parts.push(`Score: ${s.score === null ? "–" : s.score.toFixed(3)}`);
+    parts.push(`Trades: ${s.trades === null ? "–" : String(Math.round(s.trades))}`);
+    parts.push(`meanR: ${s.meanR === null ? "–" : s.meanR.toFixed(3)}`);
+    parts.push(`PF: ${s.pf === null ? "–" : s.pf.toFixed(2)}`);
+  }
+  if (gateInfo && !gateInfo.pass) parts.push(`Gate FAIL: ${gateInfo.reasons.join(", ")}`);
+  return parts.join(" • ");
+}
+
+// ---------------------------------------------------------
+// Trade Gates (presets)
+// ---------------------------------------------------------
+function gatePreset(name) {
+  // You can tweak later. The point: explicit + easy to switch.
+  if (name === "conservative") return { tradesMin: 40, scoreMin: 1.5, pfMin: 1.30, meanRMin: 0.10 };
+  if (name === "balanced")     return { tradesMin: 25, scoreMin: 1.0, pfMin: 1.15, meanRMin: 0.05 };
+  if (name === "aggressive")   return { tradesMin: 20, scoreMin: 0.5, pfMin: 1.00, meanRMin: 0.00 };
+  return null; // off
+}
+
+function evalGate(row, preset) {
+  if (!preset) return { pass: true, reasons: [] };
+
+  const s = normalizeStats(row.stats);
+  const reasons = [];
+
+  const trades = s?.trades ?? null;
+  const score  = s?.score ?? null;
+  const pf     = s?.pf ?? null;
+  const meanR  = s?.meanR ?? null;
+
+  if (trades === null) reasons.push("no trades");
+  else if (trades < preset.tradesMin) reasons.push(`trades < ${preset.tradesMin}`);
+
+  if (score === null) reasons.push("no score");
+  else if (score < preset.scoreMin) reasons.push(`score < ${preset.scoreMin}`);
+
+  if (pf === null) reasons.push("no PF");
+  else if (pf < preset.pfMin) reasons.push(`PF < ${preset.pfMin}`);
+
+  if (meanR === null) reasons.push("no meanR");
+  else if (meanR < preset.meanRMin) reasons.push(`meanR < ${preset.meanRMin}`);
+
+  return { pass: reasons.length === 0, reasons };
+}
+
+// ---------------------------------------------------------
+// Sorting
+// ---------------------------------------------------------
+function valueForSort(row, key, cfg) {
+  const renderer = cfg.renderers?.[key];
+  const raw = renderer ? renderer(row) : row[key];
+
+  if (raw === null || raw === undefined || raw === "" || raw === "–") return { t: "na", v: null };
+
+  const n = toNum(raw);
+  if (n !== null) return { t: "num", v: n };
+
+  return { t: "str", v: String(raw).toLowerCase() };
+}
+
+function sortRows(rows, sortState, cfg, tieBreak) {
+  if (!sortState?.key) return rows;
+
+  const { key, dir } = sortState;
+  const mul = dir === "asc" ? 1 : -1;
+
+  const out = rows.slice();
+  out.sort((a, b) => {
+    const va = valueForSort(a, key, cfg);
+    const vb = valueForSort(b, key, cfg);
+
+    // NA always last
+    if (va.t === "na" && vb.t === "na") return 0;
+    if (va.t === "na") return 1;
+    if (vb.t === "na") return -1;
+
+    // numeric before string
+    if (va.t !== vb.t) {
+      if (va.t === "num") return -1;
+      if (vb.t === "num") return 1;
+    }
+
+    let cmp = 0;
+    if (va.t === "num" && vb.t === "num") cmp = va.v - vb.v;
+    else cmp = String(va.v).localeCompare(String(vb.v));
+
+    if (cmp !== 0) return cmp * mul;
+
+    // tie-break (e.g., score desc then trades desc)
+    if (tieBreak?.length) {
+      for (const tb of tieBreak) {
+        const ta = valueForSort(a, tb.key, cfg);
+        const tbv = valueForSort(b, tb.key, cfg);
+
+        if (ta.t === "na" && tbv.t === "na") continue;
+        if (ta.t === "na") return 1;
+        if (tbv.t === "na") return -1;
+
+        let c2 = 0;
+        const m2 = tb.dir === "asc" ? 1 : -1;
+
+        if (ta.t === "num" && tbv.t === "num") c2 = ta.v - tbv.v;
+        else c2 = String(ta.v).localeCompare(String(tbv.v));
+
+        if (c2 !== 0) return c2 * m2;
+      }
+    }
+
+    return 0;
+  });
+
+  return out;
+}
+
+// ---------------------------------------------------------
+// View configuration
+// renderers should return numbers for numeric cols (so sort works)
+// ---------------------------------------------------------
 function buildViewConfig(view) {
-  // returns { title, cols, renderers }
+  const commonStats = {
+    trades: r => normalizeStats(r.stats)?.trades ?? null,
+    score:  r => normalizeStats(r.stats)?.score ?? null,
+    meanR:  r => normalizeStats(r.stats)?.meanR ?? null,
+    pf:     r => normalizeStats(r.stats)?.pf ?? null,
+  };
+
   if (view === "trade_plan") {
     return {
       title: "Trade Plan",
+      defaultSort: { key: "score", dir: "desc" },
+      tieBreak: [{ key: "trades", dir: "desc" }],
       cols: [
-        { key: "universe", label: "Universe" },
-        { key: "symbol", label: "Symbol" },
-        { key: "mode", label: "Mode" },
-        { key: "buy", label: "Buy", numeric: true },
-        { key: "sl", label: "SL", numeric: true },
-        { key: "tp", label: "TP", numeric: true },
-        { key: "rr", label: "RR", numeric: true },
-        { key: "hold", label: "Hold", numeric: true },
-        { key: "trades", label: "Trades", numeric: true },
-        { key: "score", label: "Score", numeric: true },
-        { key: "meanR", label: "meanR", numeric: true },
-        { key: "pf", label: "PF", numeric: true },
+        { key: "universe", label: "Universe", sortable: true },
+        { key: "symbol", label: "Symbol", sortable: true },
+        { key: "mode", label: "Mode", sortable: true },
+        { key: "buy", label: "Buy", numeric: true, sortable: true },
+        { key: "sl", label: "SL", numeric: true, sortable: true },
+        { key: "tp", label: "TP", numeric: true, sortable: true },
+        { key: "rr", label: "RR", numeric: true, sortable: true },
+        { key: "hold", label: "Hold", numeric: true, sortable: true },
+        { key: "trades", label: "Trades", numeric: true, sortable: true },
+        { key: "score", label: "Score", numeric: true, sortable: true },
+        { key: "meanR", label: "meanR", numeric: true, sortable: true },
+        { key: "pf", label: "PF", numeric: true, sortable: true },
       ],
       renderers: {
         universe: r => r.universe ?? "–",
         symbol: r => r.symbol ?? "–",
         mode: r => r.mode ?? "–",
-        buy: r => fmt(toNum(r.buy)),
-        sl: r => fmt(toNum(r.sl)),
-        tp: r => fmt(toNum(r.tp)),
-        rr: r => fmt(computeRR(r), 2),
-        hold: r => fmt(toNum(r.time_stop_bars ?? r.hold_bars ?? r.hold), 0),
-        trades: r => normalizeStats(r.stats)?.trades ?? "–",
-        score: r => {
-          const s = normalizeStats(r.stats);
-          return s?.score === null || s?.score === undefined ? "–" : fmt(s.score, 3);
-        },
-        meanR: r => {
-          const s = normalizeStats(r.stats);
-          return s?.meanR === null || s?.meanR === undefined ? "–" : fmt(s.meanR, 3);
-        },
-        pf: r => {
-          const s = normalizeStats(r.stats);
-          return s?.pf === null || s?.pf === undefined ? "–" : fmt(s.pf, 2);
-        },
+        buy: r => toNum(r.buy),
+        sl: r => toNum(r.sl),
+        tp: r => toNum(r.tp),
+        rr: r => computeRR(r),
+        hold: r => toNum(r.time_stop_bars ?? r.hold_bars ?? r.hold),
+        ...commonStats,
       },
     };
   }
@@ -368,48 +295,38 @@ function buildViewConfig(view) {
   if (view === "position_plan") {
     return {
       title: "Position Plan",
+      defaultSort: { key: "score", dir: "desc" },
+      tieBreak: [{ key: "trades", dir: "desc" }],
       cols: [
-        { key: "universe", label: "Universe" },
-        { key: "symbol", label: "Symbol" },
-        { key: "mode", label: "Mode" },
-        { key: "buy", label: "Buy", numeric: true },
-        { key: "sl", label: "SL", numeric: true },
-        { key: "tp", label: "TP", numeric: true },
-        { key: "shares", label: "Shares", numeric: true },
-        { key: "cost_usd", label: "Cost$", numeric: true },
-        { key: "risk_usd", label: "Risk$", numeric: true },
-        { key: "fee_usd", label: "Fee$", numeric: true },
-        { key: "cash_after_usd", label: "CashAfter$", numeric: true },
-        { key: "trades", label: "Trades", numeric: true },
-        { key: "score", label: "Score", numeric: true },
-        { key: "meanR", label: "meanR", numeric: true },
-        { key: "pf", label: "PF", numeric: true },
+        { key: "universe", label: "Universe", sortable: true },
+        { key: "symbol", label: "Symbol", sortable: true },
+        { key: "mode", label: "Mode", sortable: true },
+        { key: "buy", label: "Buy", numeric: true, sortable: true },
+        { key: "sl", label: "SL", numeric: true, sortable: true },
+        { key: "tp", label: "TP", numeric: true, sortable: true },
+        { key: "shares", label: "Shares", numeric: true, sortable: true },
+        { key: "cost_usd", label: "Cost$", numeric: true, sortable: true },
+        { key: "risk_usd", label: "Risk$", numeric: true, sortable: true },
+        { key: "fee_usd", label: "Fee$", numeric: true, sortable: true },
+        { key: "cash_after_usd", label: "CashAfter$", numeric: true, sortable: true },
+        { key: "trades", label: "Trades", numeric: true, sortable: true },
+        { key: "score", label: "Score", numeric: true, sortable: true },
+        { key: "meanR", label: "meanR", numeric: true, sortable: true },
+        { key: "pf", label: "PF", numeric: true, sortable: true },
       ],
       renderers: {
         universe: r => r.universe ?? "–",
         symbol: r => r.symbol ?? "–",
         mode: r => r.mode ?? "–",
-        buy: r => fmt(toNum(r.buy)),
-        sl: r => fmt(toNum(r.sl)),
-        tp: r => fmt(toNum(r.tp)),
-        shares: r => fmt(toNum(r.shares), 0),
-        cost_usd: r => fmt(toNum(r.cost_usd)),
-        risk_usd: r => fmt(toNum(r.risk_usd)),
-        fee_usd: r => fmt(toNum(r.fee_usd)),
-        cash_after_usd: r => fmt(toNum(r.cash_after_usd)),
-        trades: r => normalizeStats(r.stats)?.trades ?? "–",
-        score: r => {
-          const s = normalizeStats(r.stats);
-          return s?.score === null || s?.score === undefined ? "–" : fmt(s.score, 3);
-        },
-        meanR: r => {
-          const s = normalizeStats(r.stats);
-          return s?.meanR === null || s?.meanR === undefined ? "–" : fmt(s.meanR, 3);
-        },
-        pf: r => {
-          const s = normalizeStats(r.stats);
-          return s?.pf === null || s?.pf === undefined ? "–" : fmt(s.pf, 2);
-        },
+        buy: r => toNum(r.buy),
+        sl: r => toNum(r.sl),
+        tp: r => toNum(r.tp),
+        shares: r => toNum(r.shares),
+        cost_usd: r => toNum(r.cost_usd),
+        risk_usd: r => toNum(r.risk_usd),
+        fee_usd: r => toNum(r.fee_usd),
+        cash_after_usd: r => toNum(r.cash_after_usd),
+        ...commonStats,
       },
     };
   }
@@ -417,59 +334,132 @@ function buildViewConfig(view) {
   // Candidates (active/edge)
   return {
     title: view === "edge" ? "Candidates — Edge" : "Candidates — Active",
+    defaultSort: { key: "score", dir: "desc" },
+    tieBreak: [{ key: "trades", dir: "desc" }],
     cols: [
-      { key: "universe", label: "Universe" },
-      { key: "symbol", label: "Symbol" },
-      { key: "buy", label: "Buy", numeric: true },
-      { key: "sl", label: "SL", numeric: true },
-      { key: "tp", label: "TP", numeric: true },
-      { key: "rr", label: "RR", numeric: true },
-      { key: "hold", label: "Hold", numeric: true },
-      { key: "shares", label: "Shares", numeric: true },
-      { key: "risk_usd", label: "Risk$", numeric: true },
-      { key: "fee_usd", label: "Fee$", numeric: true },
-      { key: "trades", label: "Trades", numeric: true },
-      { key: "score", label: "Score", numeric: true },
-      { key: "meanR", label: "meanR", numeric: true },
-      { key: "pf", label: "PF", numeric: true },
+      { key: "universe", label: "Universe", sortable: true },
+      { key: "symbol", label: "Symbol", sortable: true },
+      { key: "buy", label: "Buy", numeric: true, sortable: true },
+      { key: "sl", label: "SL", numeric: true, sortable: true },
+      { key: "tp", label: "TP", numeric: true, sortable: true },
+      { key: "rr", label: "RR", numeric: true, sortable: true },
+      { key: "hold", label: "Hold", numeric: true, sortable: true },
+      { key: "shares", label: "Shares", numeric: true, sortable: true },
+      { key: "risk_usd", label: "Risk$", numeric: true, sortable: true },
+      { key: "fee_usd", label: "Fee$", numeric: true, sortable: true },
+      { key: "trades", label: "Trades", numeric: true, sortable: true },
+      { key: "score", label: "Score", numeric: true, sortable: true },
+      { key: "meanR", label: "meanR", numeric: true, sortable: true },
+      { key: "pf", label: "PF", numeric: true, sortable: true },
       { key: "events", label: "Events/News" },
     ],
     renderers: {
       universe: r => r.universe ?? "–",
       symbol: r => r.symbol ?? "–",
-      buy: r => fmt(toNum(r.buy)),
-      sl: r => fmt(toNum(r.sl)),
-      tp: r => fmt(toNum(r.tp)),
-      rr: r => fmt(computeRR(r), 2),
-      hold: r => fmt(toNum(r.time_stop_bars ?? r.hold_bars ?? r.hold), 0),
-      shares: r => {
-        const n = toNum(r.shares);
-        return n === null ? "–" : fmt(n, 0);
-      },
-      risk_usd: r => fmt(toNum(r.risk_usd)),
-      fee_usd: r => fmt(toNum(r.fee_usd)),
-      trades: r => normalizeStats(r.stats)?.trades ?? "–",
-      score: r => {
-        const s = normalizeStats(r.stats);
-        return s?.score === null || s?.score === undefined ? "–" : fmt(s.score, 3);
-      },
-      meanR: r => {
-        const s = normalizeStats(r.stats);
-        return s?.meanR === null || s?.meanR === undefined ? "–" : fmt(s.meanR, 3);
-      },
-      pf: r => {
-        const s = normalizeStats(r.stats);
-        return s?.pf === null || s?.pf === undefined ? "–" : fmt(s.pf, 2);
-      },
+      buy: r => toNum(r.buy),
+      sl: r => toNum(r.sl),
+      tp: r => toNum(r.tp),
+      rr: r => computeRR(r),
+      hold: r => toNum(r.time_stop_bars ?? r.hold_bars ?? r.hold),
+      shares: r => toNum(r.shares),
+      risk_usd: r => toNum(r.risk_usd),
+      fee_usd: r => toNum(r.fee_usd),
+      ...commonStats,
       events: r => buildEventsCell(r.overlay),
     },
   };
 }
 
-// -----------------------------
-// Main
-// -----------------------------
+// ---------------------------------------------------------
+// Table header + row rendering
+// ---------------------------------------------------------
+function setTableHeader(thead, cfg, sortState, onSort) {
+  clearEl(thead);
+  const tr = document.createElement("tr");
 
+  cfg.cols.forEach(col => {
+    const th = document.createElement("th");
+    th.textContent = col.label;
+    if (col.numeric) th.classList.add("num");
+
+    if (col.sortable) {
+      th.classList.add("sortable");
+      th.tabIndex = 0;
+
+      const active = sortState?.key === col.key;
+      if (active) th.classList.add("sorted");
+
+      const arrow = document.createElement("span");
+      arrow.className = "sort-arrow";
+      arrow.textContent = active ? (sortState.dir === "asc" ? "▲" : "▼") : "↕";
+      th.appendChild(arrow);
+
+      th.addEventListener("click", () => onSort(col.key));
+      th.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") onSort(col.key);
+      });
+    }
+
+    tr.appendChild(th);
+  });
+
+  thead.appendChild(tr);
+}
+
+function cellText(colKey, raw) {
+  if (raw === null || raw === undefined || raw === "" || raw === "–") return "–";
+  if (typeof raw === "number") {
+    if (colKey === "trades" || colKey === "hold" || colKey === "shares") return fmt(raw, 0);
+    if (colKey === "pf") return fmt(raw, 2);
+    if (colKey === "score" || colKey === "meanR") return fmt(raw, 3);
+    if (colKey === "rr") return fmt(raw, 2);
+    return fmt(raw, 2);
+  }
+  return String(raw);
+}
+
+function renderRow(row, cfg, gateInfo) {
+  const tr = document.createElement("tr");
+  if (gateInfo && !gateInfo.pass) tr.classList.add("gate-fail");
+
+  cfg.cols.forEach(col => {
+    const td = document.createElement("td");
+    if (col.numeric) td.classList.add("num");
+
+    if (col.key === "symbol") {
+      td.classList.add("symbol");
+      const wrap = document.createElement("div");
+      wrap.className = "symbol-wrap";
+
+      const s = normalizeStats(row.stats);
+      const band = scoreBand(s?.score ?? null);
+
+      const dot = document.createElement("span");
+      dot.className = "rank-dot " + band.cls;
+      dot.title = band.label + " — " + tooltipText(row, gateInfo);
+      wrap.appendChild(dot);
+
+      const txt = document.createElement("span");
+      const sym = cfg.renderers.symbol ? cfg.renderers.symbol(row) : (row.symbol ?? "–");
+      txt.textContent = cellText("symbol", sym);
+      wrap.appendChild(txt);
+
+      td.appendChild(wrap);
+    } else {
+      const renderer = cfg.renderers?.[col.key];
+      const raw = renderer ? renderer(row) : row[col.key];
+      td.textContent = cellText(col.key, raw);
+    }
+
+    tr.appendChild(td);
+  });
+
+  return tr;
+}
+
+// ---------------------------------------------------------
+// Main
+// ---------------------------------------------------------
 async function main() {
   const metaEl = document.getElementById("meta");
   const linksEl = document.getElementById("links");
@@ -478,6 +468,8 @@ async function main() {
 
   const strategySelect = document.getElementById("strategySelect");
   const viewSelect = document.getElementById("viewSelect");
+  const gateSelect = document.getElementById("gateSelect");
+  const gateOnly = document.getElementById("gateOnly");
   const search = document.getElementById("search");
   const titleEl = document.getElementById("tableTitle");
   const hintEl = document.getElementById("hint");
@@ -507,6 +499,9 @@ async function main() {
   let latest = null;
   let archive = null;
 
+  // keep sort per view
+  const sortByView = { active: null, edge: null, trade_plan: null, position_plan: null };
+
   async function loadStrategy() {
     const sel = strategySelect.selectedOptions[0];
     const latestPath = sel?.dataset?.path;
@@ -522,7 +517,6 @@ async function main() {
     latest = null;
     archive = null;
 
-    // 1) latest.json
     try {
       latest = await loadJSON(latestPath);
     } catch (e) {
@@ -530,7 +524,6 @@ async function main() {
       return;
     }
 
-    // 2) archive json (contains rows + stats)
     const archivePath = latest?.paths?.archive;
     if (!archivePath) {
       metaEl.textContent = `latest.json hat keinen paths.archive: ${latestPath}`;
@@ -547,36 +540,81 @@ async function main() {
     const asof = archive?.asof ?? latest?.asof ?? "–";
     const strat = archive?.strategy ?? latest?.strategy ?? sel?.value ?? "–";
     const gen = archive?.generated ?? latest?.generated ?? "–";
-
     metaEl.textContent = `asof: ${asof} • strategy: ${strat} • generated: ${gen}`;
 
     buildLinks(linksEl, latest);
 
+    // init default sort for current view
+    const view = viewSelect.value;
+    const cfg = buildViewConfig(view);
+    if (!sortByView[view]) sortByView[view] = cfg.defaultSort;
+
+    render();
+  }
+
+  function onSort(key) {
+    const view = viewSelect.value;
+    const cfg = buildViewConfig(view);
+    const cur = sortByView[view] || cfg.defaultSort;
+
+    let dir = "desc";
+    if (cur?.key === key) dir = cur.dir === "desc" ? "asc" : "desc";
+    sortByView[view] = { key, dir };
     render();
   }
 
   function render() {
     if (!archive) return;
 
-    const view = viewSelect.value; // active|edge|trade_plan|position_plan
+    const view = viewSelect.value;
     const cfg = buildViewConfig(view);
+
+    if (!sortByView[view]) sortByView[view] = cfg.defaultSort;
 
     titleEl.textContent = `${(strategySelect.selectedOptions[0]?.textContent || "").trim()} — ${cfg.title}`;
 
-    const rowsRaw = pickRowsFromArchive(archive, view);
-    const rowsSorted = sortRows(rowsRaw);
-    const filtered = applyFilter(rowsSorted, search.value);
+    const rowsAll = pickRowsFromArchive(archive, view);
 
-    hintEl.textContent = `Anzahl: ${filtered.length} (von ${rowsRaw.length})`;
+    // 1) gates evaluate
+    const preset = gatePreset(gateSelect.value);
+    const evaluated = rowsAll.map(r => ({ row: r, gate: evalGate(r, preset) }));
 
-    setTableHeader(thead, cfg.cols);
+    // map for tooltips
+    const gateMap = new Map();
+    evaluated.forEach(x => gateMap.set(x.row, x.gate));
+
+    // 2) optional gate filter
+    const gateFiltered = gateOnly.checked ? evaluated.filter(x => x.gate.pass).map(x => x.row)
+                                          : evaluated.map(x => x.row);
+
+    // 3) search filter
+    const textFiltered = applyTextFilter(gateFiltered, search.value);
+
+    // 4) sorting
+    const sorted = sortRows(textFiltered, sortByView[view], cfg, cfg.tieBreak);
+
+    hintEl.textContent = `Anzahl: ${sorted.length} (von ${rowsAll.length})`;
+
+    setTableHeader(thead, cfg, sortByView[view], onSort);
 
     clearEl(tbody);
-    filtered.forEach(r => tbody.appendChild(renderRow(r, cfg)));
+    sorted.forEach(r => {
+      const gateInfo = gateMap.get(r) || null;
+      tbody.appendChild(renderRow(r, cfg, gateInfo));
+    });
   }
 
   strategySelect.addEventListener("change", loadStrategy);
-  viewSelect.addEventListener("change", render);
+
+  viewSelect.addEventListener("change", () => {
+    const view = viewSelect.value;
+    const cfg = buildViewConfig(view);
+    if (!sortByView[view]) sortByView[view] = cfg.defaultSort;
+    render();
+  });
+
+  gateSelect.addEventListener("change", render);
+  gateOnly.addEventListener("change", render);
   search.addEventListener("input", render);
 
   await loadStrategy();
