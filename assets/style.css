@@ -210,3 +210,56 @@ tr.gate-fail{
   color: var(--muted);
   font-size: 14px;
 }
+
+/* Header layout + Help button */
+.header .title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ? button */
+.help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d7dbe3);
+  background: var(--card, #fff);
+  color: var(--text, #111);
+  text-decoration: none;
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
+
+.help-btn:hover {
+  background: var(--muted, #f3f5f8);
+}
+
+/* Optional: back button on help page */
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d7dbe3);
+  background: var(--card, #fff);
+  color: var(--text, #111);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.btn-outline:hover {
+  background: var(--muted, #f3f5f8);
+}
