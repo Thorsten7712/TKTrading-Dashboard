@@ -40,7 +40,7 @@ function toNum(x) {
 }
 
 function clearEl(el) {
-  while (el.firstChild) el.removeChild(el.firstChild);
+  while (el && el.firstChild) el.removeChild(el.firstChild);
 }
 
 function applyTextFilter(rows, q) {
@@ -468,8 +468,8 @@ async function main() {
 
   const strategySelect = document.getElementById("strategySelect");
   const viewSelect = document.getElementById("viewSelect");
-  const gateSelect = document.getElementById("gateSelect");
-  const gateOnly = document.getElementById("gateOnly");
+  const gateSelect = document.getElementById("gateSelect"); // optional
+  const gateOnly = document.getElementById("gateOnly");     // optional
   const search = document.getElementById("search");
   const titleEl = document.getElementById("tableTitle");
   const hintEl = document.getElementById("hint");
@@ -575,18 +575,20 @@ async function main() {
 
     const rowsAll = pickRowsFromArchive(archive, view);
 
-    // 1) gates evaluate
-    const preset = gatePreset(gateSelect.value);
+    // 1) gates evaluate (defensive: controls may not exist)
+    const preset = gateSelect ? gatePreset(gateSelect.value) : null;
     const evaluated = rowsAll.map(r => ({ row: r, gate: evalGate(r, preset) }));
 
     // map for tooltips
     const gateMap = new Map();
     evaluated.forEach(x => gateMap.set(x.row, x.gate));
 
-    // 2) optional gate filter
-    const gateFiltered = gateOnly.checked ? evaluated.filter(x => x.gate.pass).map(x => x.row)
-                                          : evaluated.map(x => x.row);
-
+    // 2) optional gate filter (defensive)
+    const onlyPass = gateOnly ? !!gateOnly.checked : false;
+    const gateFiltered = onlyPass
+      ? evaluated.filter(x => x.gate.pass).map(x => x.row)
+      : evaluated.map(x => x.row);
+    
     // 3) search filter
     const textFiltered = applyTextFilter(gateFiltered, search.value);
 
@@ -613,8 +615,8 @@ async function main() {
     render();
   });
 
-  gateSelect.addEventListener("change", render);
-  gateOnly.addEventListener("change", render);
+  if (gateSelect) gateSelect.addEventListener("change", render);
+  if (gateOnly) gateOnly.addEventListener("change", render);
   search.addEventListener("input", render);
 
   await loadStrategy();
