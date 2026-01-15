@@ -1,3 +1,10 @@
+// assets/app.js
+// Dashboard Explorer (static GitHub Pages)
+// - loads data/manifest.json -> latest.json -> archive.json
+// - supports 4 views: candidates active/edge, trade plan, position plan
+// - adds ranking traffic-light marker (red/yellow/green) per ticker based on stats.score (quantiles)
+// - numeric columns right-aligned via td.num / th.num (needs CSS in style.css)
+
 async function fetchText(url) {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
@@ -9,7 +16,6 @@ async function loadJSON(url) {
   try {
     return JSON.parse(txt);
   } catch (e) {
-    // Helpful debug for GitHub Pages / invalid JSON (e.g. NaN, Infinity, trailing commas)
     const head = txt.slice(0, 400).replace(/\s+/g, " ").trim();
     throw new Error(`JSON parse failed for ${url}: ${e.message}. Head: ${head}`);
   }
@@ -33,7 +39,6 @@ function toNum(x) {
 }
 
 function buildEventsCell(overlay) {
-  // overlay is optional; currently you mostly have "–"
   if (!overlay) return "–";
   const parts = [];
   if (overlay.risk_flag) parts.push(`[${overlay.risk_flag}]`);
@@ -55,27 +60,101 @@ function clearEl(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
+// -----------------------------
+// Ranking Ampel (quantiles)
+// -----------------------------
+
+function quantile(sortedArr, q) {
+  if (!sortedArr.length) return null;
+  const pos = (sortedArr.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (sortedArr[base + 1] === undefined) return sortedArr[base];
+  return sortedArr[base] + rest * (sortedArr[base + 1] - sortedArr[base]);
+}
+
+function buildScoreThresholds(rows, minTrades = 20) {
+  // score + (optional) trades filter
+  const scores = rows
+    .map(r => toNum(r?.stats?.score))
+    .filter(v => typeof v === "number" && Number.isFinite(v));
+
+  // If we also want to ensure enough trades, we filter by trades per row
+  const filteredScores = [];
+  for (let i = 0; i < rows.length; i++) {
+    const sc = toNum(rows[i]?.stats?.score);
+    if (sc === null) continue;
+    const t = toNum(rows[i]?.stats?.trades);
+    if (typeof t === "number" && t < minTrades) continue;
+    filteredScores.push(sc);
+  }
+
+  const use = filteredScores.length ? filteredScores : scores;
+  const arr = use.slice().sort((a, b) => a - b);
+
+  if (!arr.length) return { q33: null, q66: null };
+  return { q33: quantile(arr, 0.33), q66: quantile(arr, 0.66) };
+}
+
+function rankClassForRow(row, thresholds, minTrades = 20) {
+  const score = toNum(row?.stats?.score);
+  const trades = toNum(row?.stats?.trades);
+
+  if (score === null) return "rank-na";
+  if (typeof trades === "number" && trades < minTrades) return "rank-na";
+  if (thresholds?.q33 == null || thresholds?.q66 == null) return "rank-na";
+
+  if (score >= thresholds.q66) return "rank-green";
+  if (score >= thresholds.q33) return "rank-yellow";
+  return "rank-red";
+}
+
+// -----------------------------
+// Table helpers (header + rows)
+// -----------------------------
+
 function setTableHeader(thead, cols) {
+  // cols: [{ key, label, numeric? }]
   clearEl(thead);
   const tr = document.createElement("tr");
   cols.forEach(c => {
     const th = document.createElement("th");
-    th.textContent = c;
+    th.textContent = c.label;
+    if (c.numeric) th.className = "num";
     tr.appendChild(th);
   });
   thead.appendChild(tr);
 }
 
-function rowToTr_Generic(row, cols, renderers) {
-  const tr = document.createElement("tr");
-  cols.forEach((colKey) => {
-    const td = document.createElement("td");
-    const renderer = renderers[colKey];
-    const val = renderer ? renderer(row) : row[colKey];
-    td.textContent = (val === null || val === undefined || val === "") ? "–" : String(val);
-    tr.appendChild(td);
-  });
-  return tr;
+function normalizeStats(stats) {
+  if (!stats) return null;
+  return {
+    trades: toNum(stats.trades),
+    score: toNum(stats.score),
+    meanR: toNum(stats.mean_R ?? stats.meanR),
+    pf: toNum(stats.pf ?? stats.profit_factor),
+  };
+}
+
+function computeRR(row) {
+  const rr = toNum(row.rr);
+  if (rr !== null) return rr;
+  const buy = toNum(row.buy);
+  const sl = toNum(row.sl);
+  const tp = toNum(row.tp);
+  if (buy === null || sl === null || tp === null) return null;
+  const risk = buy - sl;
+  if (risk <= 0) return null;
+  return (tp - buy) / risk;
+}
+
+function pickRowsFromArchive(archive, view) {
+  const data = archive?.data || {};
+  if (view === "active") return data.candidates_active || [];
+  if (view === "edge") return data.candidates_edge || [];
+  if (view === "trade_plan") return data.trade_plan || [];
+  if (view === "position_plan") return data.position_plan || [];
+  return [];
 }
 
 function buildLinks(linksEl, latest) {
@@ -100,51 +179,30 @@ function buildLinks(linksEl, latest) {
   });
 }
 
-function normalizeStats(stats) {
-  // stats come from export_dashboard enrichment:
-  // { trades, score, mean_R, pf, ... }
-  if (!stats) return null;
-  return {
-    trades: toNum(stats.trades),
-    score: toNum(stats.score),
-    meanR: toNum(stats.mean_R ?? stats.meanR),
-    pf: toNum(stats.pf ?? stats.profit_factor),
-  };
-}
-
-function pickRowsFromArchive(archive, view) {
-  // archive schema:
-  // { strategy, trend_suffix, asof, generated, data: { candidates_active, candidates_edge, trade_plan, position_plan } }
-  const data = archive?.data || {};
-  if (view === "active") return data.candidates_active || [];
-  if (view === "edge") return data.candidates_edge || [];
-  if (view === "trade_plan") return data.trade_plan || [];
-  if (view === "position_plan") return data.position_plan || [];
-  return [];
-}
-
-function computeRR(row) {
-  // Prefer explicit rr if present. Else compute from buy/sl/tp.
-  const rr = toNum(row.rr);
-  if (rr !== null) return rr;
-  const buy = toNum(row.buy);
-  const sl = toNum(row.sl);
-  const tp = toNum(row.tp);
-  if (buy === null || sl === null || tp === null) return null;
-  const risk = buy - sl;
-  if (risk <= 0) return null;
-  return (tp - buy) / risk;
-}
+// -----------------------------
+// View configs (headers + render)
+// -----------------------------
 
 function buildViewConfig(view) {
-  // Return { title, cols(header labels), keys(for rendering), renderers }
-  // We'll render by "keys" but show human-friendly headers.
-  // Note: candidates vs plans have different columns.
+  // We use { cols: [{key,label,numeric}], title, renderCell(row,key) }
+  // Numeric cells get td.num for right alignment.
   if (view === "trade_plan") {
     return {
       title: "Trade Plan",
-      headers: ["Universe", "Symbol", "Mode", "Buy", "SL", "TP", "RR", "Hold", "Trades", "Score", "meanR", "PF"],
-      keys:    ["universe","symbol","mode","buy","sl","tp","rr","hold","trades","score","meanR","pf"],
+      cols: [
+        { key: "universe", label: "Universe" },
+        { key: "symbol", label: "Symbol" },
+        { key: "mode", label: "Mode" },
+        { key: "buy", label: "Buy", numeric: true },
+        { key: "sl", label: "SL", numeric: true },
+        { key: "tp", label: "TP", numeric: true },
+        { key: "rr", label: "RR", numeric: true },
+        { key: "hold", label: "Hold", numeric: true },
+        { key: "trades", label: "Trades", numeric: true },
+        { key: "score", label: "Score", numeric: true },
+        { key: "meanR", label: "meanR", numeric: true },
+        { key: "pf", label: "PF", numeric: true },
+      ],
       renderers: {
         universe: r => r.universe ?? "–",
         symbol: r => r.symbol ?? "–",
@@ -154,10 +212,7 @@ function buildViewConfig(view) {
         tp: r => fmt(toNum(r.tp)),
         rr: r => fmt(computeRR(r), 2),
         hold: r => fmt(toNum(r.time_stop_bars ?? r.hold_bars ?? r.hold), 0),
-        trades: r => {
-          const s = normalizeStats(r.stats);
-          return s?.trades ?? "–";
-        },
+        trades: r => normalizeStats(r.stats)?.trades ?? "–",
         score: r => {
           const s = normalizeStats(r.stats);
           return s?.score === null || s?.score === undefined ? "–" : fmt(s.score, 3);
@@ -170,15 +225,30 @@ function buildViewConfig(view) {
           const s = normalizeStats(r.stats);
           return s?.pf === null || s?.pf === undefined ? "–" : fmt(s.pf, 2);
         },
-      }
+      },
     };
   }
 
   if (view === "position_plan") {
     return {
       title: "Position Plan",
-      headers: ["Universe", "Symbol", "Mode", "Buy", "SL", "TP", "Shares", "Cost$", "Risk$", "Fee$", "CashAfter$", "Trades", "Score", "meanR", "PF"],
-      keys:    ["universe","symbol","mode","buy","sl","tp","shares","cost_usd","risk_usd","fee_usd","cash_after_usd","trades","score","meanR","pf"],
+      cols: [
+        { key: "universe", label: "Universe" },
+        { key: "symbol", label: "Symbol" },
+        { key: "mode", label: "Mode" },
+        { key: "buy", label: "Buy", numeric: true },
+        { key: "sl", label: "SL", numeric: true },
+        { key: "tp", label: "TP", numeric: true },
+        { key: "shares", label: "Shares", numeric: true },
+        { key: "cost_usd", label: "Cost$", numeric: true },
+        { key: "risk_usd", label: "Risk$", numeric: true },
+        { key: "fee_usd", label: "Fee$", numeric: true },
+        { key: "cash_after_usd", label: "CashAfter$", numeric: true },
+        { key: "trades", label: "Trades", numeric: true },
+        { key: "score", label: "Score", numeric: true },
+        { key: "meanR", label: "meanR", numeric: true },
+        { key: "pf", label: "PF", numeric: true },
+      ],
       renderers: {
         universe: r => r.universe ?? "–",
         symbol: r => r.symbol ?? "–",
@@ -191,10 +261,7 @@ function buildViewConfig(view) {
         risk_usd: r => fmt(toNum(r.risk_usd)),
         fee_usd: r => fmt(toNum(r.fee_usd)),
         cash_after_usd: r => fmt(toNum(r.cash_after_usd)),
-        trades: r => {
-          const s = normalizeStats(r.stats);
-          return s?.trades ?? "–";
-        },
+        trades: r => normalizeStats(r.stats)?.trades ?? "–",
         score: r => {
           const s = normalizeStats(r.stats);
           return s?.score === null || s?.score === undefined ? "–" : fmt(s.score, 3);
@@ -207,15 +274,30 @@ function buildViewConfig(view) {
           const s = normalizeStats(r.stats);
           return s?.pf === null || s?.pf === undefined ? "–" : fmt(s.pf, 2);
         },
-      }
+      },
     };
   }
 
   // Candidates (active/edge)
   return {
     title: view === "edge" ? "Candidates — Edge" : "Candidates — Active",
-    headers: ["Universe", "Symbol", "Buy", "SL", "TP", "RR", "Hold", "Shares", "Risk$", "Fee$", "Trades", "Score", "meanR", "PF", "Events/News"],
-    keys:    ["universe","symbol","buy","sl","tp","rr","hold","shares","risk_usd","fee_usd","trades","score","meanR","pf","events"],
+    cols: [
+      { key: "universe", label: "Universe" },
+      { key: "symbol", label: "Symbol" },
+      { key: "buy", label: "Buy", numeric: true },
+      { key: "sl", label: "SL", numeric: true },
+      { key: "tp", label: "TP", numeric: true },
+      { key: "rr", label: "RR", numeric: true },
+      { key: "hold", label: "Hold", numeric: true },
+      { key: "shares", label: "Shares", numeric: true },
+      { key: "risk_usd", label: "Risk$", numeric: true },
+      { key: "fee_usd", label: "Fee$", numeric: true },
+      { key: "trades", label: "Trades", numeric: true },
+      { key: "score", label: "Score", numeric: true },
+      { key: "meanR", label: "meanR", numeric: true },
+      { key: "pf", label: "PF", numeric: true },
+      { key: "events", label: "Events/News" },
+    ],
     renderers: {
       universe: r => r.universe ?? "–",
       symbol: r => r.symbol ?? "–",
@@ -224,13 +306,13 @@ function buildViewConfig(view) {
       tp: r => fmt(toNum(r.tp)),
       rr: r => fmt(computeRR(r), 2),
       hold: r => fmt(toNum(r.time_stop_bars ?? r.hold_bars ?? r.hold), 0),
-      shares: r => (r.shares === undefined || r.shares === null) ? "–" : String(r.shares),
+      shares: r => {
+        const n = toNum(r.shares);
+        return n === null ? "–" : fmt(n, 0);
+      },
       risk_usd: r => fmt(toNum(r.risk_usd)),
       fee_usd: r => fmt(toNum(r.fee_usd)),
-      trades: r => {
-        const s = normalizeStats(r.stats);
-        return s?.trades ?? "–";
-      },
+      trades: r => normalizeStats(r.stats)?.trades ?? "–",
       score: r => {
         const s = normalizeStats(r.stats);
         return s?.score === null || s?.score === undefined ? "–" : fmt(s.score, 3);
@@ -244,9 +326,49 @@ function buildViewConfig(view) {
         return s?.pf === null || s?.pf === undefined ? "–" : fmt(s.pf, 2);
       },
       events: r => buildEventsCell(r.overlay),
-    }
+    },
   };
 }
+
+function renderRowWithAmpel(row, cfg, thresholds, minTrades = 20) {
+  const tr = document.createElement("tr");
+
+  cfg.cols.forEach(col => {
+    const td = document.createElement("td");
+    if (col.numeric) td.classList.add("num");
+
+    // Special: Symbol cell -> rank dot + symbol text
+    if (col.key === "symbol") {
+      td.classList.add("symbol");
+      const wrap = document.createElement("div");
+      wrap.style.display = "flex";
+      wrap.style.alignItems = "center";
+
+      const dot = document.createElement("span");
+      dot.className = "rank-dot " + rankClassForRow(row, thresholds, minTrades);
+      wrap.appendChild(dot);
+
+      const txt = document.createElement("span");
+      const val = cfg.renderers?.symbol ? cfg.renderers.symbol(row) : (row.symbol ?? "–");
+      txt.textContent = (val === null || val === undefined || val === "") ? "–" : String(val);
+      wrap.appendChild(txt);
+
+      td.appendChild(wrap);
+    } else {
+      const renderer = cfg.renderers?.[col.key];
+      const val = renderer ? renderer(row) : row[col.key];
+      td.textContent = (val === null || val === undefined || val === "") ? "–" : String(val);
+    }
+
+    tr.appendChild(td);
+  });
+
+  return tr;
+}
+
+// -----------------------------
+// Main
+// -----------------------------
 
 async function main() {
   const metaEl = document.getElementById("meta");
@@ -336,7 +458,7 @@ async function main() {
   function render() {
     if (!archive) return;
 
-    const view = viewSelect.value;
+    const view = viewSelect.value; // expected: active|edge|trade_plan|position_plan
     const cfg = buildViewConfig(view);
 
     titleEl.textContent = `${(strategySelect.selectedOptions[0]?.textContent || "").trim()} — ${cfg.title}`;
@@ -346,12 +468,14 @@ async function main() {
 
     hintEl.textContent = `Anzahl: ${filtered.length} (von ${rows.length})`;
 
-    setTableHeader(thead, cfg.headers);
+    // Ranking thresholds computed on full rows (not filtered), per current view
+    const thresholds = buildScoreThresholds(rows, 20);
+
+    setTableHeader(thead, cfg.cols);
 
     clearEl(tbody);
     filtered.forEach(r => {
-      const tr = rowToTr_Generic(r, cfg.keys, cfg.renderers);
-      tbody.appendChild(tr);
+      tbody.appendChild(renderRowWithAmpel(r, cfg, thresholds, 20));
     });
   }
 
