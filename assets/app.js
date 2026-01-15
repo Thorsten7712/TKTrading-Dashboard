@@ -1,21 +1,23 @@
 // assets/app.js
-// Dashboard Explorer (static GitHub Pages)
+// TKTrading Dashboard Explorer (static GitHub Pages)
 //
-// Loads:
-//   data/manifest.json -> latest.json -> archive.json
+// Loads: data/manifest.json -> strategy latest.json -> archive.json
+// Views: candidates active/edge, trade plan, position plan
+// Features:
+// - fixed score-based "Ampel" (rank dot) with tooltip
+// - trade gate: if trades < MIN_TRADES => rank-na (grey)
+// - sorting: best first (Top/Green/Yellow/Red/Grey), then score desc, trades desc, universe+symbol
+// - robust JSON parsing debug (shows head if JSON invalid)
 //
-// Views:
-//   - candidates active
-//   - candidates edge
-//   - trade plan
-//   - position plan
-//
-// Ranking Ampel:
-//   score < 0.5           => red
-//   0.5 <= score < 1.5    => yellow
-//   1.5 <= score < 3.0    => green
-//   score >= 3.0          => top (green variant)
-// Tooltip on dot shows: score, trades, mean_R, profit_factor
+// Requires CSS classes (expected in style.css):
+// .rank-dot, .rank-top, .rank-green, .rank-yellow, .rank-red, .rank-na
+// .num (right-align), td.symbol (optional)
+
+const MIN_TRADES = 20;
+
+// -----------------------------
+// Fetch + JSON parsing helpers
+// -----------------------------
 
 async function fetchText(url) {
   const res = await fetch(url, { cache: "no-store" });
@@ -28,10 +30,14 @@ async function loadJSON(url) {
   try {
     return JSON.parse(txt);
   } catch (e) {
-    const head = txt.slice(0, 400).replace(/\s+/g, " ").trim();
+    const head = txt.slice(0, 500).replace(/\s+/g, " ").trim();
     throw new Error(`JSON parse failed for ${url}: ${e.message}. Head: ${head}`);
   }
 }
+
+// -----------------------------
+// Formatting / numeric helpers
+// -----------------------------
 
 function fmt(x, digits = 2) {
   if (x === null || x === undefined || Number.isNaN(x)) return "–";
@@ -54,15 +60,6 @@ function clearEl(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
-function buildEventsCell(overlay) {
-  if (!overlay) return "–";
-  const parts = [];
-  if (overlay.risk_flag) parts.push(`[${overlay.risk_flag}]`);
-  if (Array.isArray(overlay.events) && overlay.events.length) parts.push(overlay.events.join(" • "));
-  if (Array.isArray(overlay.news) && overlay.news.length) parts.push(overlay.news.slice(0, 2).join(" • "));
-  return parts.length ? parts.join(" — ") : "–";
-}
-
 function applyFilter(rows, q) {
   if (!q) return rows;
   const s = q.toLowerCase();
@@ -73,11 +70,23 @@ function applyFilter(rows, q) {
 }
 
 // -----------------------------
-// Stats / RR
+// Optional overlay (events/news)
+// -----------------------------
+
+function buildEventsCell(overlay) {
+  if (!overlay) return "–";
+  const parts = [];
+  if (overlay.risk_flag) parts.push(`[${overlay.risk_flag}]`);
+  if (Array.isArray(overlay.events) && overlay.events.length) parts.push(overlay.events.join(" • "));
+  if (Array.isArray(overlay.news) && overlay.news.length) parts.push(overlay.news.slice(0, 2).join(" • "));
+  return parts.length ? parts.join(" — ") : "–";
+}
+
+// -----------------------------
+// Stats normalization (from export_dashboard enrichment)
 // -----------------------------
 
 function normalizeStats(stats) {
-  // export_dashboard enrichment: { trades, score, mean_R, pf/profit_factor, ... }
   if (!stats) return null;
   return {
     trades: toNum(stats.trades),
@@ -86,6 +95,10 @@ function normalizeStats(stats) {
     pf: toNum(stats.pf ?? stats.profit_factor),
   };
 }
+
+// -----------------------------
+// RR computation
+// -----------------------------
 
 function computeRR(row) {
   const rr = toNum(row.rr);
@@ -99,36 +112,115 @@ function computeRR(row) {
   return (tp - buy) / risk;
 }
 
-function pickRowsFromArchive(archive, view) {
-  const data = archive?.data || {};
-  if (view === "active") return data.candidates_active || [];
-  if (view === "edge") return data.candidates_edge || [];
-  if (view === "trade_plan") return data.trade_plan || [];
-  if (view === "position_plan") return data.position_plan || [];
-  return [];
-}
-
 // -----------------------------
-// Ampel (fixed score bins)
+// Ampel (fixed thresholds) + tooltip
 // -----------------------------
 
-function rankClassForScore(score) {
-  if (score === null) return "rank-na";
-  if (score < 0.5) return "rank-red";
-  if (score < 1.5) return "rank-yellow";
-  if (score < 3.0) return "rank-green";
-  return "rank-top";
-}
-
-function buildRankTooltip(row) {
+function rankBucket(row) {
+  // returns: "top" | "green" | "yellow" | "red" | "na"
   const s = normalizeStats(row?.stats);
-  if (!s) return "Ranking: keine Daten";
-  const parts = [];
-  parts.push(`Score: ${s.score === null ? "–" : fmt(s.score, 3)}`);
-  parts.push(`Trades: ${s.trades === null ? "–" : fmt(s.trades, 0)}`);
-  parts.push(`mean_R: ${s.meanR === null ? "–" : fmt(s.meanR, 3)}`);
-  parts.push(`PF: ${s.pf === null ? "–" : fmt(s.pf, 2)}`);
-  return parts.join(" • ");
+  if (!s) return "na";
+
+  // Trade gate
+  if (typeof s.trades === "number" && s.trades < MIN_TRADES) return "na";
+
+  const score = s.score;
+  if (score === null) return "na";
+
+  if (score >= 3.0) return "top";
+  if (score >= 1.5) return "green";
+  if (score >= 0.5) return "yellow";
+  return "red"; // < 0.5
+}
+
+function rankClass(row) {
+  const b = rankBucket(row);
+  if (b === "top") return "rank-top";
+  if (b === "green") return "rank-green";
+  if (b === "yellow") return "rank-yellow";
+  if (b === "red") return "rank-red";
+  return "rank-na";
+}
+
+function rankWeight(row) {
+  // higher = better
+  const b = rankBucket(row);
+  if (b === "top") return 4;
+  if (b === "green") return 3;
+  if (b === "yellow") return 2;
+  if (b === "red") return 1;
+  return 0; // na
+}
+
+function tooltipText(row) {
+  const s = normalizeStats(row?.stats);
+  const trades = s?.trades;
+  const score = s?.score;
+
+  if (!s) return "Kein Ranking verfügbar";
+  if (typeof trades === "number" && trades < MIN_TRADES) {
+    return `Grau: zu wenige Trades (${trades} < ${MIN_TRADES})`;
+  }
+  if (score === null) return "Grau: kein Score";
+
+  const bucket = rankBucket(row);
+  if (bucket === "top") return `TOP: Score ≥ 3.0 (Score: ${fmt(score, 3)}, Trades: ${fmt(trades, 0)})`;
+  if (bucket === "green") return `Grün: 1.5–<3.0 (Score: ${fmt(score, 3)}, Trades: ${fmt(trades, 0)})`;
+  if (bucket === "yellow") return `Gelb: 0.5–<1.5 (Score: ${fmt(score, 3)}, Trades: ${fmt(trades, 0)})`;
+  if (bucket === "red") return `Rot: < 0.5 (Score: ${fmt(score, 3)}, Trades: ${fmt(trades, 0)})`;
+  return "Grau";
+}
+
+// -----------------------------
+// Sorting
+// -----------------------------
+
+function compareStr(a, b) {
+  const aa = String(a ?? "");
+  const bb = String(b ?? "");
+  return aa.localeCompare(bb);
+}
+
+function scoreForSort(row) {
+  const s = normalizeStats(row?.stats);
+  if (!s) return null;
+  if (typeof s.trades === "number" && s.trades < MIN_TRADES) return null;
+  return s.score;
+}
+
+function tradesForSort(row) {
+  const s = normalizeStats(row?.stats);
+  return s?.trades ?? null;
+}
+
+function sortRows(rows) {
+  const arr = rows.slice();
+  arr.sort((a, b) => {
+    // 1) Ampel weight desc
+    const wa = rankWeight(a);
+    const wb = rankWeight(b);
+    if (wa !== wb) return wb - wa;
+
+    // 2) score desc (nulls last)
+    const sa = scoreForSort(a);
+    const sb = scoreForSort(b);
+    if (sa === null && sb !== null) return 1;
+    if (sa !== null && sb === null) return -1;
+    if (sa !== null && sb !== null && sa !== sb) return sb - sa;
+
+    // 3) trades desc (nulls last)
+    const ta = tradesForSort(a);
+    const tb = tradesForSort(b);
+    if (ta === null && tb !== null) return 1;
+    if (ta !== null && tb === null) return -1;
+    if (ta !== null && tb !== null && ta !== tb) return tb - ta;
+
+    // 4) universe asc, symbol asc
+    const cu = compareStr(a.universe, b.universe);
+    if (cu !== 0) return cu;
+    return compareStr(a.symbol, b.symbol);
+  });
+  return arr;
 }
 
 // -----------------------------
@@ -142,11 +234,65 @@ function setTableHeader(thead, cols) {
   cols.forEach(c => {
     const th = document.createElement("th");
     th.textContent = c.label;
-    if (c.numeric) th.className = "num";
+    if (c.numeric) th.classList.add("num");
     tr.appendChild(th);
   });
   thead.appendChild(tr);
 }
+
+function renderRow(row, cfg) {
+  const tr = document.createElement("tr");
+
+  cfg.cols.forEach(col => {
+    const td = document.createElement("td");
+    if (col.numeric) td.classList.add("num");
+
+    if (col.key === "symbol") {
+      td.classList.add("symbol");
+      const wrap = document.createElement("div");
+      wrap.style.display = "flex";
+      wrap.style.alignItems = "center";
+      wrap.style.gap = "8px";
+
+      const dot = document.createElement("span");
+      dot.className = "rank-dot " + rankClass(row);
+      dot.title = tooltipText(row); // tooltip
+      wrap.appendChild(dot);
+
+      const txt = document.createElement("span");
+      const val = cfg.renderers?.symbol ? cfg.renderers.symbol(row) : (row.symbol ?? "–");
+      txt.textContent = (val === null || val === undefined || val === "") ? "–" : String(val);
+      wrap.appendChild(txt);
+
+      td.appendChild(wrap);
+    } else {
+      const renderer = cfg.renderers?.[col.key];
+      const val = renderer ? renderer(row) : row[col.key];
+      td.textContent = (val === null || val === undefined || val === "") ? "–" : String(val);
+    }
+
+    tr.appendChild(td);
+  });
+
+  return tr;
+}
+
+// -----------------------------
+// Data pickers (archive schema)
+// -----------------------------
+
+function pickRowsFromArchive(archive, view) {
+  const data = archive?.data || {};
+  if (view === "active") return data.candidates_active || [];
+  if (view === "edge") return data.candidates_edge || [];
+  if (view === "trade_plan") return data.trade_plan || [];
+  if (view === "position_plan") return data.position_plan || [];
+  return [];
+}
+
+// -----------------------------
+// Links
+// -----------------------------
 
 function buildLinks(linksEl, latest) {
   clearEl(linksEl);
@@ -175,6 +321,7 @@ function buildLinks(linksEl, latest) {
 // -----------------------------
 
 function buildViewConfig(view) {
+  // returns { title, cols, renderers }
   if (view === "trade_plan") {
     return {
       title: "Trade Plan",
@@ -320,51 +467,6 @@ function buildViewConfig(view) {
 }
 
 // -----------------------------
-// Row render (with Ampel dot in Symbol cell)
-// -----------------------------
-
-function renderRowWithAmpel(row, cfg) {
-  const tr = document.createElement("tr");
-
-  cfg.cols.forEach(col => {
-    const td = document.createElement("td");
-    if (col.numeric) td.classList.add("num");
-
-    if (col.key === "symbol") {
-      td.classList.add("symbol");
-
-      const wrap = document.createElement("div");
-      wrap.style.display = "flex";
-      wrap.style.alignItems = "center";
-      wrap.style.gap = "8px";
-
-      const s = normalizeStats(row?.stats);
-      const score = s ? s.score : null;
-
-      const dot = document.createElement("span");
-      dot.className = "rank-dot " + rankClassForScore(score);
-      dot.title = buildRankTooltip(row); // native tooltip
-      wrap.appendChild(dot);
-
-      const txt = document.createElement("span");
-      const val = cfg.renderers?.symbol ? cfg.renderers.symbol(row) : (row.symbol ?? "–");
-      txt.textContent = (val === null || val === undefined || val === "") ? "–" : String(val);
-      wrap.appendChild(txt);
-
-      td.appendChild(wrap);
-    } else {
-      const renderer = cfg.renderers?.[col.key];
-      const val = renderer ? renderer(row) : row[col.key];
-      td.textContent = (val === null || val === undefined || val === "") ? "–" : String(val);
-    }
-
-    tr.appendChild(td);
-  });
-
-  return tr;
-}
-
-// -----------------------------
 // Main
 // -----------------------------
 
@@ -398,7 +500,7 @@ async function main() {
     const opt = document.createElement("option");
     opt.value = s.id;
     opt.textContent = s.name || s.id;
-    opt.dataset.path = s.path; // latest.json path
+    opt.dataset.path = s.path; // latest.json
     strategySelect.appendChild(opt);
   });
 
@@ -420,6 +522,7 @@ async function main() {
     latest = null;
     archive = null;
 
+    // 1) latest.json
     try {
       latest = await loadJSON(latestPath);
     } catch (e) {
@@ -427,6 +530,7 @@ async function main() {
       return;
     }
 
+    // 2) archive json (contains rows + stats)
     const archivePath = latest?.paths?.archive;
     if (!archivePath) {
       metaEl.textContent = `latest.json hat keinen paths.archive: ${latestPath}`;
@@ -443,9 +547,11 @@ async function main() {
     const asof = archive?.asof ?? latest?.asof ?? "–";
     const strat = archive?.strategy ?? latest?.strategy ?? sel?.value ?? "–";
     const gen = archive?.generated ?? latest?.generated ?? "–";
+
     metaEl.textContent = `asof: ${asof} • strategy: ${strat} • generated: ${gen}`;
 
     buildLinks(linksEl, latest);
+
     render();
   }
 
@@ -457,15 +563,16 @@ async function main() {
 
     titleEl.textContent = `${(strategySelect.selectedOptions[0]?.textContent || "").trim()} — ${cfg.title}`;
 
-    const rows = pickRowsFromArchive(archive, view);
-    const filtered = applyFilter(rows, search.value);
+    const rowsRaw = pickRowsFromArchive(archive, view);
+    const rowsSorted = sortRows(rowsRaw);
+    const filtered = applyFilter(rowsSorted, search.value);
 
-    hintEl.textContent = `Anzahl: ${filtered.length} (von ${rows.length})`;
+    hintEl.textContent = `Anzahl: ${filtered.length} (von ${rowsRaw.length})`;
 
     setTableHeader(thead, cfg.cols);
 
     clearEl(tbody);
-    filtered.forEach(r => tbody.appendChild(renderRowWithAmpel(r, cfg)));
+    filtered.forEach(r => tbody.appendChild(renderRow(r, cfg)));
   }
 
   strategySelect.addEventListener("change", loadStrategy);
