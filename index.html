@@ -3,34 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-
   <title>TKTrading Dashboard</title>
-
-  <!-- Styles -->
   <link rel="stylesheet" href="assets/style.css" />
-
-  <!-- Optional: set light theme explicitly (default)
-       For dark theme later: add class="theme-dark" -->
 </head>
-
 <body>
-  <!-- =============================
-       Header / Controls
-  ============================== -->
   <header class="wrap">
-    <div class="title">
-      <h1>TKTrading Dashboard</h1>
-      <div id="meta" class="meta">Lade …</div>
+    <div class="titlebar">
+      <div class="title">
+        <h1>TKTrading Dashboard</h1>
+        <div id="meta" class="meta">Lade …</div>
+      </div>
     </div>
 
-    <div class="controls">
-      <label>
-        Strategie
+    <div class="controls-grid">
+      <label class="control">
+        <span class="label">Strategie</span>
         <select id="strategySelect"></select>
       </label>
 
-      <label>
-        Ansicht
+      <label class="control">
+        <span class="label">Ansicht</span>
         <select id="viewSelect">
           <option value="active">Candidates — Active</option>
           <option value="edge">Candidates — Edge</option>
@@ -39,26 +31,36 @@
         </select>
       </label>
 
-      <label>
-        Filter
-        <input
-          id="search"
-          type="search"
-          placeholder="Symbol oder Universe (z.B. AAPL, dax)"
-        />
+      <label class="control">
+        <span class="label">Trade Gates</span>
+        <select id="gateSelect">
+          <option value="off">Off</option>
+          <option value="aggressive">Aggressive</option>
+          <option value="balanced" selected>Balanced</option>
+          <option value="conservative">Conservative</option>
+        </select>
+      </label>
+
+      <label class="control">
+        <span class="label">Filter</span>
+        <input id="search" type="search" placeholder="Symbol oder Universe (z.B. AAPL, dax)" />
+      </label>
+
+      <label class="control checkbox">
+        <input id="gateOnly" type="checkbox" checked />
+        <span>Nur Gate-Passes anzeigen</span>
       </label>
     </div>
 
     <div id="links" class="links"></div>
   </header>
 
-  <!-- =============================
-       Main Content
-  ============================== -->
   <main class="wrap">
     <section class="card">
-      <h2 id="tableTitle">Loading…</h2>
-      <div id="hint" class="hint"></div>
+      <div class="card-head">
+        <h2 id="tableTitle">Loading…</h2>
+        <div class="hint" id="hint"></div>
+      </div>
 
       <div class="table-wrap">
         <table id="tbl">
@@ -67,18 +69,12 @@
         </table>
       </div>
     </section>
+
+    <footer class="footer">
+      <span>Quelle: static data/ im Dashboard Repo</span>
+    </footer>
   </main>
 
-  <!-- =============================
-       Footer
-  ============================== -->
-  <footer class="footer">
-    <span>Quelle: static <code>data/</code> im Dashboard Repo</span>
-  </footer>
-
-  <!-- =============================
-       App Logic
-  ============================== -->
   <script src="assets/app.js"></script>
 </body>
 </html>
