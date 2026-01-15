@@ -2,7 +2,7 @@
   "strategy": "trend_pulse",
   "trend_suffix": "trend_off",
   "asof": "2026-01-14",
-  "generated": "2026-01-15T05:41:17Z",
+  "generated": "2026-01-15T06:52:11Z",
   "counts": {
     "candidates_active": 57,
     "candidates_edge": 273,

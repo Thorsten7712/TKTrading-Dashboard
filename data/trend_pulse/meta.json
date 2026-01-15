@@ -1,7 +1,7 @@
 {
   "strategy": "trend_pulse",
   "trend_suffix": "trend_off",
-  "updated": "2026-01-15T05:41:17Z",
+  "updated": "2026-01-15T06:52:11Z",
   "schema": {
     "latest": [
       "strategy",
