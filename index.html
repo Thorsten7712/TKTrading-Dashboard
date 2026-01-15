@@ -4,9 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>TKTrading Dashboard</title>
+
+  <!-- Styles -->
   <link rel="stylesheet" href="assets/style.css" />
 </head>
+
 <body>
+  <!-- =========================================================
+       HEADER / CONTROLS
+       ========================================================= -->
   <header class="wrap">
     <div class="title">
       <h1>TKTrading Dashboard</h1>
@@ -31,13 +37,21 @@
 
       <label>
         Filter:
-        <input id="search" type="search" placeholder="Symbol oder Universe (z.B. AAPL, dax)" />
+        <input
+          id="search"
+          type="search"
+          placeholder="Symbol oder Universe (z.B. AAPL, dax)"
+        />
       </label>
     </div>
 
+    <!-- CSV / Archive Links -->
     <div id="links" class="links"></div>
   </header>
 
+  <!-- =========================================================
+       MAIN CONTENT
+       ========================================================= -->
   <main class="wrap">
     <section class="card">
       <h2 id="tableTitle">Loading…</h2>
@@ -52,10 +66,13 @@
     </section>
 
     <footer class="footer">
-      <span>Quelle: static data/ im Dashboard Repo</span>
+      <span>Quelle: static <code>data/</code> im Dashboard Repo</span>
     </footer>
   </main>
 
+  <!-- =========================================================
+       APP SCRIPT
+       ========================================================= -->
   <script src="assets/app.js"></script>
 </body>
 </html>
