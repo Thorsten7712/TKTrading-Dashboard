@@ -1,282 +1,348 @@
-/* ============================================================
-   TKTrading Dashboard — Light default + optional Dark theme
-   - Default: light (white background, black text)
-   - Dark: set <html data-theme="dark">
-   ============================================================ */
+/* assets/style.css
+   TKTrading Dashboard (static)
+   - default: light theme (white background, black text)
+   - optional: .theme-dark on <html> or <body> for dark theme
+   - supports ranking "Ampel" dots:
+     .rank-top (>= 3.0), .rank-green (1.5-<3.0), .rank-yellow (0.5-<1.5), .rank-red (<0.5), .rank-na (grey)
+*/
 
-:root{
-  /* Light theme (default) */
+/* -----------------------------
+   Theme tokens
+----------------------------- */
+
+:root {
   --bg: #ffffff;
   --panel: #ffffff;
-  --panel-2: #f6f7f9;
   --text: #111111;
-  --muted: #4b5563;
-  --border: #e5e7eb;
+  --muted: #666666;
+  --border: #e6e6e6;
+  --shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
 
-  --link: #0b5fff;
-  --link-hover: #0847bf;
+  --link: #0b63ce;
+  --link-hover: #084a9a;
 
-  --shadow: 0 6px 20px rgba(0,0,0,0.08);
+  --control-bg: #ffffff;
+  --control-border: #cfcfcf;
+  --control-text: #111111;
 
-  /* Table */
-  --thead-bg: #f3f4f6;
-  --row-hover: #f8fafc;
+  --table-head: #f6f6f6;
+  --table-hover: #fafafa;
 
-  /* Badges / ranking color markers */
-  --good-bg: #eaf7ef;
-  --good-text: #0f6a2b;
-  --warn-bg: #fff6db;
-  --warn-text: #8a5b00;
-  --bad-bg: #fdecec;
-  --bad-text: #9b1c1c;
+  /* Rank dot colors */
+  --rank-top: #1a7f37;
+  --rank-green: #2ea043;
+  --rank-yellow: #d29922;
+  --rank-red: #cf222e;
+  --rank-na: #9aa0a6;
 
-  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  /* Focus ring */
+  --focus: rgba(11, 99, 206, 0.25);
 }
 
-/* Dark theme */
-html[data-theme="dark"]{
-  --bg: #0b0f14;
-  --panel: #0f1720;
-  --panel-2: #111c27;
-  --text: #e5e7eb;
-  --muted: #9aa4b2;
-  --border: rgba(255,255,255,0.12);
+/* Optional dark theme: add class theme-dark to html or body */
+.theme-dark {
+  --bg: #0f1115;
+  --panel: #131720;
+  --text: #f3f4f6;
+  --muted: #a8b0bd;
+  --border: #2a3140;
+  --shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
 
   --link: #7ab7ff;
-  --link-hover: #a8d0ff;
+  --link-hover: #a9d1ff;
 
-  --shadow: 0 10px 28px rgba(0,0,0,0.45);
+  --control-bg: #0f1115;
+  --control-border: #364155;
+  --control-text: #f3f4f6;
 
-  --thead-bg: rgba(255,255,255,0.06);
-  --row-hover: rgba(255,255,255,0.04);
+  --table-head: #171c26;
+  --table-hover: #121826;
 
-  --good-bg: rgba(34,197,94,0.14);
-  --good-text: #8ef0b1;
-  --warn-bg: rgba(245,158,11,0.14);
-  --warn-text: #ffd38a;
-  --bad-bg: rgba(239,68,68,0.14);
-  --bad-text: #ffb4b4;
+  --rank-top: #3fb950;
+  --rank-green: #2ea043;
+  --rank-yellow: #d29922;
+  --rank-red: #ff5c5c;
+  --rank-na: #7d8590;
+
+  --focus: rgba(122, 183, 255, 0.28);
 }
 
-/* Base */
-*{ box-sizing: border-box; }
-html, body{ height: 100%; }
+/* -----------------------------
+   Base
+----------------------------- */
 
-body{
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+}
+
+body {
   margin: 0;
-  font-family: var(--sans);
-  background: var(--bg);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   color: var(--text);
+  background: var(--bg);
   line-height: 1.35;
 }
 
-/* Layout */
-.wrap{
+/* Make links readable in both themes */
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+}
+
+/* -----------------------------
+   Layout helpers
+----------------------------- */
+
+.wrap {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 18px 16px;
+  padding: 18px;
 }
 
-header.wrap{
-  display: grid;
-  gap: 14px;
+header.wrap {
+  padding-top: 22px;
+  padding-bottom: 10px;
 }
 
-.title{
+.title {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 6px;
 }
 
-h1{
+h1 {
   margin: 0;
   font-size: 22px;
+  font-weight: 700;
   letter-spacing: 0.2px;
 }
 
-.meta{
+.meta {
   color: var(--muted);
   font-size: 13px;
 }
 
-/* Controls */
-.controls{
+/* -----------------------------
+   Controls / toolbar
+----------------------------- */
+
+.controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  grid-template-columns: 1fr 1fr 1.2fr;
   gap: 12px;
+  margin-top: 14px;
+  align-items: end;
 }
 
-@media (max-width: 860px){
-  .controls{ grid-template-columns: 1fr; }
-}
-
-label{
-  display: grid;
+.controls label {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   font-size: 13px;
   color: var(--muted);
 }
 
-select, input[type="search"]{
-  width: 100%;
-  padding: 10px 10px;
-  border: 1px solid var(--border);
+select, input[type="search"], button {
+  appearance: none;
+  background: var(--control-bg);
+  color: var(--control-text);
+  border: 1px solid var(--control-border);
   border-radius: 10px;
-  background: var(--panel);
-  color: var(--text);
+  padding: 10px 12px;
+  font-size: 14px;
   outline: none;
 }
 
-select:focus, input[type="search"]:focus{
-  border-color: rgba(11,95,255,0.45);
-  box-shadow: 0 0 0 4px rgba(11,95,255,0.12);
+select:focus, input[type="search"]:focus, button:focus {
+  box-shadow: 0 0 0 4px var(--focus);
+  border-color: var(--link);
 }
 
-/* Links row */
-.links{
+input[type="search"]::placeholder {
+  color: color-mix(in srgb, var(--muted), transparent 25%);
+}
+
+@media (max-width: 860px) {
+  .controls {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -----------------------------
+   Links row
+----------------------------- */
+
+.links {
+  margin-top: 12px;
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 10px;
 }
 
-.links a{
+.links a {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--panel);
-  color: var(--link);
+  background: color-mix(in srgb, var(--panel), var(--bg) 40%);
   text-decoration: none;
   font-size: 13px;
 }
 
-.links a:hover{
-  color: var(--link-hover);
-  border-color: rgba(11,95,255,0.35);
+.links a:hover {
+  background: color-mix(in srgb, var(--panel), var(--link) 8%);
+  text-decoration: none;
 }
 
-/* Card */
-.card{
+/* -----------------------------
+   Cards
+----------------------------- */
+
+.card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 18px;
   box-shadow: var(--shadow);
   padding: 14px 14px 10px 14px;
 }
 
-.card h2{
-  margin: 0 0 6px 0;
+h2 {
+  margin: 0;
   font-size: 16px;
+  font-weight: 700;
 }
 
-.hint{
+.hint {
+  margin-top: 6px;
   color: var(--muted);
-  font-size: 13px;
-  margin-bottom: 10px;
+  font-size: 12.5px;
 }
 
-/* Table */
-.table-wrap{
-  width: 100%;
+/* -----------------------------
+   Table
+----------------------------- */
+
+.table-wrap {
+  margin-top: 12px;
   overflow: auto;
+  border-radius: 14px;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--panel);
 }
 
-table{
+table {
+  width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  width: 100%;
-  min-width: 980px;
-  font-size: 13px;
+  min-width: 980px; /* keep columns readable */
 }
 
-thead th{
+thead th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--thead-bg);
+  background: var(--table-head);
   color: var(--muted);
+  font-weight: 700;
+  font-size: 12.5px;
   text-align: left;
-  font-weight: 600;
   padding: 10px 10px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
-tbody td{
-  padding: 9px 10px;
+tbody td {
+  padding: 10px 10px;
   border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
   white-space: nowrap;
 }
 
-tbody tr:hover td{
-  background: var(--row-hover);
+tbody tr:hover td {
+  background: var(--table-hover);
 }
 
-/* Footer */
-.footer{
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 12px;
-  padding-bottom: 18px;
-}
-
-.footer code{
-  font-family: var(--mono);
-  font-size: 12px;
-}
-
-/* Utility: badge (for later risk flags / ranking) */
-.badge{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  border: 1px solid var(--border);
-  background: var(--panel-2);
-  color: var(--muted);
-}
-
-.badge.good{
-  background: var(--good-bg);
-  color: var(--good-text);
-  border-color: rgba(34,197,94,0.25);
-}
-
-.badge.warn{
-  background: var(--warn-bg);
-  color: var(--warn-text);
-  border-color: rgba(245,158,11,0.25);
-}
-
-.badge.bad{
-  background: var(--bad-bg);
-  color: var(--bad-text);
-  border-color: rgba(239,68,68,0.25);
-}
-
-/* Utility: numeric alignment (optional) */
-td.num, th.num{
+th.num, td.num {
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-/* Make very long "Events/News" readable */
-td.events{
-  max-width: 520px;
-  white-space: normal;
+/* Symbol cell layout when dot is present */
+td.symbol > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Selection polish */
-::selection{
-  background: rgba(11,95,255,0.18);
+/* -----------------------------
+   Rank dot (Ampel)
+----------------------------- */
+
+.rank-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--border), #000 12%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel), transparent 70%);
+}
+
+/* >= 3.0 */
+.rank-top {
+  background: var(--rank-top);
+}
+
+/* 1.5 - < 3.0 */
+.rank-green {
+  background: var(--rank-green);
+}
+
+/* 0.5 - < 1.5 */
+.rank-yellow {
+  background: var(--rank-yellow);
+}
+
+/* < 0.5 */
+.rank-red {
+  background: var(--rank-red);
+}
+
+/* no ranking / too few trades / missing score */
+.rank-na {
+  background: var(--rank-na);
+}
+
+/* -----------------------------
+   Footer
+----------------------------- */
+
+.footer {
+  padding: 14px 18px 26px 18px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+/* -----------------------------
+   Small polish
+----------------------------- */
+
+::selection {
+  background: color-mix(in srgb, var(--link), transparent 70%);
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
 }
