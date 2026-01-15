@@ -7,22 +7,26 @@
   <link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
-  <header class="wrap">
-    <div class="titlebar">
+  <header class="wrap header">
+    <div class="title-row">
       <div class="title">
         <h1>TKTrading Dashboard</h1>
         <div id="meta" class="meta">Lade …</div>
       </div>
+
+      <div class="header-actions">
+        <a class="help-btn" href="help.html" title="Handbuch öffnen" aria-label="Handbuch">?</a>
+      </div>
     </div>
 
-    <div class="controls-grid">
-      <label class="control">
-        <span class="label">Strategie</span>
+    <div class="controls">
+      <label>
+        Strategie
         <select id="strategySelect"></select>
       </label>
 
-      <label class="control">
-        <span class="label">Ansicht</span>
+      <label>
+        Ansicht
         <select id="viewSelect">
           <option value="active">Candidates — Active</option>
           <option value="edge">Candidates — Edge</option>
@@ -31,24 +35,9 @@
         </select>
       </label>
 
-      <label class="control">
-        <span class="label">Trade Gates</span>
-        <select id="gateSelect">
-          <option value="off">Off</option>
-          <option value="aggressive">Aggressive</option>
-          <option value="balanced" selected>Balanced</option>
-          <option value="conservative">Conservative</option>
-        </select>
-      </label>
-
-      <label class="control">
-        <span class="label">Filter</span>
+      <label>
+        Filter
         <input id="search" type="search" placeholder="Symbol oder Universe (z.B. AAPL, dax)" />
-      </label>
-
-      <label class="control checkbox">
-        <input id="gateOnly" type="checkbox" checked />
-        <span>Nur Gate-Passes anzeigen</span>
       </label>
     </div>
 
@@ -57,10 +46,8 @@
 
   <main class="wrap">
     <section class="card">
-      <div class="card-head">
-        <h2 id="tableTitle">Loading…</h2>
-        <div class="hint" id="hint"></div>
-      </div>
+      <h2 id="tableTitle">Loading…</h2>
+      <div class="hint" id="hint"></div>
 
       <div class="table-wrap">
         <table id="tbl">
