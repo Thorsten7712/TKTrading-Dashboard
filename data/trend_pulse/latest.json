@@ -1,10 +1,10 @@
 {
   "strategy": "trend_pulse",
   "trend_suffix": "trend_off",
-  "asof": "2026-01-13",
-  "generated": "2026-01-14T15:38:56Z",
+  "asof": "2026-01-14",
+  "generated": "2026-01-15T05:41:17Z",
   "paths": {
-    "archive": "data/trend_pulse/archive/2026-01-13.json",
+    "archive": "data/trend_pulse/archive/2026-01-14.json",
     "csv": {
       "candidates_active": "data/trend_pulse/csv/candidates_active.csv",
       "candidates_edge": "data/trend_pulse/csv/candidates_edge.csv",
@@ -14,8 +14,8 @@
     "rankings_dir": "data/trend_pulse/rankings"
   },
   "counts": {
-    "candidates_active": 65,
-    "candidates_edge": 258,
+    "candidates_active": 57,
+    "candidates_edge": 273,
     "trade_plan": 6,
     "position_plan": 2
   },
