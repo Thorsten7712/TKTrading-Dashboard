@@ -3,16 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+
   <title>TKTrading Dashboard</title>
 
   <!-- Styles -->
   <link rel="stylesheet" href="assets/style.css" />
+
+  <!-- Optional: set light theme explicitly (default)
+       For dark theme later: add class="theme-dark" -->
 </head>
 
 <body>
-  <!-- =========================================================
-       HEADER / CONTROLS
-       ========================================================= -->
+  <!-- =============================
+       Header / Controls
+  ============================== -->
   <header class="wrap">
     <div class="title">
       <h1>TKTrading Dashboard</h1>
@@ -21,12 +25,12 @@
 
     <div class="controls">
       <label>
-        Strategie:
+        Strategie
         <select id="strategySelect"></select>
       </label>
 
       <label>
-        Ansicht:
+        Ansicht
         <select id="viewSelect">
           <option value="active">Candidates — Active</option>
           <option value="edge">Candidates — Edge</option>
@@ -36,15 +40,7 @@
       </label>
 
       <label>
-        Theme:
-        <select id="themeSelect">
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </label>
-      
-      <label>
-        Filter:
+        Filter
         <input
           id="search"
           type="search"
@@ -53,17 +49,16 @@
       </label>
     </div>
 
-    <!-- CSV / Archive Links -->
     <div id="links" class="links"></div>
   </header>
 
-  <!-- =========================================================
-       MAIN CONTENT
-       ========================================================= -->
+  <!-- =============================
+       Main Content
+  ============================== -->
   <main class="wrap">
     <section class="card">
       <h2 id="tableTitle">Loading…</h2>
-      <div class="hint" id="hint"></div>
+      <div id="hint" class="hint"></div>
 
       <div class="table-wrap">
         <table id="tbl">
@@ -72,15 +67,18 @@
         </table>
       </div>
     </section>
-
-    <footer class="footer">
-      <span>Quelle: static <code>data/</code> im Dashboard Repo</span>
-    </footer>
   </main>
 
-  <!-- =========================================================
-       APP SCRIPT
-       ========================================================= -->
+  <!-- =============================
+       Footer
+  ============================== -->
+  <footer class="footer">
+    <span>Quelle: static <code>data/</code> im Dashboard Repo</span>
+  </footer>
+
+  <!-- =============================
+       App Logic
+  ============================== -->
   <script src="assets/app.js"></script>
 </body>
 </html>
