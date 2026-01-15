@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TKTrading Dashboard – Handbuch</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body class="page-help">
+  <header class="wrap header">
+    <div class="title-row">
+      <div class="title">
+        <h1>TKTrading Dashboard – Handbuch</h1>
+        <div class="meta">
+          Erklärt, was du siehst, wie die Kennzahlen zu lesen sind und wie du damit zu einer Entscheidung kommst.
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <a class="btn-outline" href="index.html">← Zurück zum Dashboard</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <h2>1) Grundidee</h2>
+      <p>
+        Das Dashboard ist ein <b>Read-only Explorer</b> für die täglich exportierten Strategiedaten.
+        Du nutzt es, um aus einer Menge Kandidaten (<i>Candidates</i>) eine kleine Auswahl zu filtern,
+        die zu deinem Risiko- und Qualitätsanspruch passt, und daraus dann konkrete Orders abzuleiten
+        (<i>Trade Plan</i> / <i>Position Plan</i>).
+      </p>
+      <p>
+        Wichtig: Das Dashboard ist keine “Garantie-Maschine”. Es hilft dir, systematisch zu entscheiden:
+        <b>Setup</b> (Buy/SL/TP/RR) + <b>Qualität</b> (Ranking/Stats) + <b>Machbarkeit</b> (Positionsgröße/Kosten).
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>2) Datenquellen & Aktualisierung</h2>
+      <ul>
+        <li><b>latest.json</b> (zeigt “wo ist der aktuelle Stand”) → verweist auf das Archiv JSON.</li>
+        <li><b>archive/&lt;date&gt;.json</b> (enthält die eigentlichen Zeilen/Records).</li>
+        <li><b>csv/…</b> (die gleichen Inhalte als “Latest CSV Snapshot” zum Download).</li>
+        <li><b>rankings/…</b> (Ranking-Dateien je Universe & Trend-Suffix; daraus werden Stats an die Zeilen gemerged).</li>
+      </ul>
+      <p>
+        Du siehst oben im Dashboard: <b>asof</b> (Handelstag/Signal-Stichtag), <b>strategy</b>, <b>generated</b> (Zeitpunkt der Erstellung).
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>3) Ansichten (Views)</h2>
+
+      <h3>Candidates — Active</h3>
+      <p>
+        Das sind Kandidaten, die die Strategie als “handelswürdig” betrachtet (im Sinne der internen Regeln).
+        Active ist typischerweise die “engere” Menge.
+      </p>
+
+      <h3>Candidates — Edge</h3>
+      <p>
+        “Edge” ist eine breitere Menge bzw. enthält auch Grenzfälle/Alternativen. Du nutzt sie,
+        wenn Active zu leer ist oder du bewusst “mehr Auswahl” möchtest.
+      </p>
+
+      <h3>Trade Plan</h3>
+      <p>
+        Konkrete Trade-Setups (meist deutlich weniger Zeilen). Hier geht es nicht mehr um “Kandidatenliste”,
+        sondern um <b>konkrete Trades</b>, die du (nach Prüfung) umsetzen könntest.
+      </p>
+
+      <h3>Position Plan</h3>
+      <p>
+        Der Position Plan ergänzt den Trade Plan um <b>Positionsgröße</b> und <b>Dollar-Beträge</b>
+        (Kosten, Risiko, Gebühren, Cash-After). Das ist die “machbare” Übersetzung in Stückzahlen.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>4) Spalten erklärt</h2>
+
+      <h3>Gemeinsame Setup-Spalten</h3>
+      <ul>
+        <li><b>Universe</b>: Markt-/Index-Universum (z.B. sp500, dax, mdax, sdax).</li>
+        <li><b>Symbol</b>: Ticker.</li>
+        <li><b>Buy</b>: Geplanter Einstiegspreis (Limit/Trigger je nach Ausführung).</li>
+        <li><b>SL</b>: Stop-Loss.</li>
+        <li><b>TP</b>: Take-Profit.</li>
+        <li><b>RR</b>: Reward/Risk Verhältnis. (Falls nicht geliefert, wird es aus Buy/SL/TP berechnet.)</li>
+        <li><b>Hold</b>: Zeit-Stop in Tagen/Bars (maximale Haltezeit). Wenn überall 30 steht:
+          Das ist ein <b>konstanter Strategie-Parameter</b> (Time-Stop), der aktuell fix auf 30 gesetzt ist.</li>
+      </ul>
+
+      <h3>Plan-spezifische Spalten</h3>
+      <ul>
+        <li><b>Mode</b> (Trade/Position Plan): Kennzeichnung ob der Trade aus Active oder Edge stammt (oder anderes Regime).</li>
+        <li><b>Shares</b> (Position Plan): Stückzahl.</li>
+        <li><b>Cost$</b>: Positionswert (Buy * Shares).</li>
+        <li><b>Risk$</b>: monetäres Risiko (typisch: (Buy - SL) * Shares).</li>
+        <li><b>Fee$</b>: geschätzte Gebühren.</li>
+        <li><b>CashAfter$</b>: verbleibendes Cash nach Ausführung.</li>
+      </ul>
+
+      <h3>Ranking/Stats-Spalten</h3>
+      <p>
+        Diese Werte kommen aus den <b>Rankings</b> (Backtest/Statistik je Symbol) und werden an die Zeilen gemerged:
+      </p>
+      <ul>
+        <li><b>Trades</b>: Anzahl historischer Trades im Ranking (Datenbasis/“Stichprobe”).</li>
+        <li><b>Score</b>: zusammengefasste Qualitätskennzahl (höher = besser).</li>
+        <li><b>meanR</b>: durchschnittliches R-Multiple pro Trade (Erwartungswert je Trade).</li>
+        <li><b>PF</b>: Profit Factor (Gewinnsumme / Verlustsumme; &gt;1 gut, je höher desto stabiler – Kontext beachten).</li>
+      </ul>
+
+      <h3>Events/News</h3>
+      <p>
+        Optionaler Overlay-Bereich. Wenn leer: Es wurden (noch) keine Events/News eingespielt oder gemerged.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>5) Ampel (Ranking-Markierung)</h2>
+      <p>
+        Neben dem Symbol siehst du eine Ampel als schnelle Qualitäts-Heuristik basierend auf dem <b>Score</b>.
+        Die Einteilung ist fest:
+      </p>
+      <ul>
+        <li><b>Rot</b>: Score &lt; 0.5</li>
+        <li><b>Gelb</b>: 0.5 – 1.5</li>
+        <li><b>Grün</b>: 1.5 – 3.0</li>
+        <li><b>Sehr Grün</b>: Score ≥ 3.0</li>
+      </ul>
+      <p>
+        Der Tooltip auf der Ampel zeigt dir Score/Trades/meanR/PF – damit du “Farbe” nicht blind vertraust.
+        Typischer Denkfehler: Ein hoher Score bei sehr wenigen Trades kann weniger belastbar sein.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>6) Entscheidungs-Workflow (Praxis)</h2>
+      <ol>
+        <li><b>Start</b> mit <b>Trade Plan</b> (wenn vorhanden). Das ist die “Top-Auswahl” der Strategie.</li>
+        <li><b>Prüfe Qualität</b> über Ampel + Stats: Score hoch? Trades ausreichend? meanR positiv? PF &gt; 1?</li>
+        <li><b>Prüfe Setup</b>: RR sinnvoll? SL realistisch? Passt TP zum Chart/Volatilität (optional manuell prüfen)?</li>
+        <li><b>Machbarkeit</b> über Position Plan: Passt Risk$ zu deinem Risiko-Budget? Passt Cost$ zu Cash?</li>
+        <li><b>Wenn Trade Plan leer</b>: geh auf Candidates Active → filtere/sortiere → shortlist.</li>
+        <li><b>Wenn Active zu dünn</b>: ergänze mit Candidates Edge (aber mit strengeren Qualitätsanforderungen).</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>7) Typische Regeln (gesunder Menschenverstand)</h2>
+      <ul>
+        <li><b>Nicht handeln</b>, wenn SL “zu weit” ist und Risk$ dein Budget sprengt.</li>
+        <li><b>Vorsicht</b>, wenn Score niedrig oder PF ≤ 1 (das kann auf schlechte historische Qualität hindeuten).</li>
+        <li><b>Vorsicht</b> bei sehr wenigen Trades: Statistik ist dann oft wenig stabil.</li>
+        <li><b>Mehrere Kandidaten im gleichen Sektor</b>: Korrelation beachten (Klumpenrisiko).</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>8) Glossar</h2>
+      <ul>
+        <li><b>R</b>: Risk-Unit. 1R entspricht deinem initialen Risiko je Trade.</li>
+        <li><b>RR</b>: Reward/Risk. Zielgewinn in Relation zum Risiko.</li>
+        <li><b>PF</b>: Profit Factor. Verhältnis Gewinne/Verluste über viele Trades.</li>
+        <li><b>Time Stop / Hold</b>: Schließt den Trade nach X Tagen/Bars unabhängig von TP/SL.</li>
+      </ul>
+    </section>
+
+    <footer class="footer">
+      <span>Quelle: static data/ im Dashboard Repo</span>
+    </footer>
+  </main>
+</body>
+</html>
