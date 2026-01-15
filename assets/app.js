@@ -1,9 +1,17 @@
 // assets/app.js
 // Dashboard Explorer (static GitHub Pages)
+//
+// Features:
 // - loads data/manifest.json -> latest.json -> archive.json
-// - supports 4 views: candidates active/edge, trade plan, position plan
-// - adds ranking traffic-light marker (red/yellow/green) per ticker based on stats.score (quantiles)
+// - views: candidates active/edge, trade plan, position plan
+// - ranking traffic-light marker (red/yellow/green) per ticker based on stats.score (quantiles)
+// - theme toggle (light/dark) with localStorage persistence
 // - numeric columns right-aligned via td.num / th.num (needs CSS in style.css)
+// - symbol column shows a colored dot + symbol
+
+// -----------------------------
+// Fetch + JSON helpers
+// -----------------------------
 
 async function fetchText(url) {
   const res = await fetch(url, { cache: "no-store" });
@@ -16,10 +24,15 @@ async function loadJSON(url) {
   try {
     return JSON.parse(txt);
   } catch (e) {
+    // Helpful debug for GitHub Pages / invalid JSON (e.g. NaN, Infinity, trailing commas)
     const head = txt.slice(0, 400).replace(/\s+/g, " ").trim();
     throw new Error(`JSON parse failed for ${url}: ${e.message}. Head: ${head}`);
   }
 }
+
+// -----------------------------
+// Formatting + parsing
+// -----------------------------
 
 function fmt(x, digits = 2) {
   if (x === null || x === undefined || Number.isNaN(x)) return "–";
@@ -38,6 +51,52 @@ function toNum(x) {
   return Number.isFinite(n) ? n : null;
 }
 
+// -----------------------------
+// DOM helpers
+// -----------------------------
+
+function clearEl(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+// -----------------------------
+// Theme toggle (light/dark)
+// -----------------------------
+
+const THEME_KEY = "tk_theme";
+
+function applyTheme(theme) {
+  const t = (theme === "dark") ? "dark" : "light";
+  // Light = default (no attribute). Dark via data-theme="dark"
+  if (t === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+  return t;
+}
+
+function loadSavedTheme() {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return (v === "dark" || v === "light") ? v : "light";
+  } catch {
+    return "light";
+  }
+}
+
+function saveTheme(theme) {
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // ignore
+  }
+}
+
+// -----------------------------
+// Overlay / Events cell
+// -----------------------------
+
 function buildEventsCell(overlay) {
   if (!overlay) return "–";
   const parts = [];
@@ -47,6 +106,10 @@ function buildEventsCell(overlay) {
   return parts.length ? parts.join(" — ") : "–";
 }
 
+// -----------------------------
+// Filtering
+// -----------------------------
+
 function applyFilter(rows, q) {
   if (!q) return rows;
   const s = q.toLowerCase();
@@ -54,10 +117,6 @@ function applyFilter(rows, q) {
     String(r.symbol || "").toLowerCase().includes(s) ||
     String(r.universe || "").toLowerCase().includes(s)
   );
-}
-
-function clearEl(el) {
-  while (el.firstChild) el.removeChild(el.firstChild);
 }
 
 // -----------------------------
@@ -74,12 +133,11 @@ function quantile(sortedArr, q) {
 }
 
 function buildScoreThresholds(rows, minTrades = 20) {
-  // score + (optional) trades filter
-  const scores = rows
+  // Prefer score values that also meet minTrades, but fall back if too few exist.
+  const allScores = rows
     .map(r => toNum(r?.stats?.score))
     .filter(v => typeof v === "number" && Number.isFinite(v));
 
-  // If we also want to ensure enough trades, we filter by trades per row
   const filteredScores = [];
   for (let i = 0; i < rows.length; i++) {
     const sc = toNum(rows[i]?.stats?.score);
@@ -89,7 +147,7 @@ function buildScoreThresholds(rows, minTrades = 20) {
     filteredScores.push(sc);
   }
 
-  const use = filteredScores.length ? filteredScores : scores;
+  const use = filteredScores.length ? filteredScores : allScores;
   const arr = use.slice().sort((a, b) => a - b);
 
   if (!arr.length) return { q33: null, q66: null };
@@ -110,7 +168,7 @@ function rankClassForRow(row, thresholds, minTrades = 20) {
 }
 
 // -----------------------------
-// Table helpers (header + rows)
+// Table helpers
 // -----------------------------
 
 function setTableHeader(thead, cols) {
@@ -180,12 +238,10 @@ function buildLinks(linksEl, latest) {
 }
 
 // -----------------------------
-// View configs (headers + render)
+// View configs
 // -----------------------------
 
 function buildViewConfig(view) {
-  // We use { cols: [{key,label,numeric}], title, renderCell(row,key) }
-  // Numeric cells get td.num for right alignment.
   if (view === "trade_plan") {
     return {
       title: "Trade Plan",
@@ -337,12 +393,13 @@ function renderRowWithAmpel(row, cfg, thresholds, minTrades = 20) {
     const td = document.createElement("td");
     if (col.numeric) td.classList.add("num");
 
-    // Special: Symbol cell -> rank dot + symbol text
+    // Symbol cell -> rank dot + symbol text
     if (col.key === "symbol") {
       td.classList.add("symbol");
       const wrap = document.createElement("div");
       wrap.style.display = "flex";
       wrap.style.alignItems = "center";
+      wrap.style.gap = "8px";
 
       const dot = document.createElement("span");
       dot.className = "rank-dot " + rankClassForRow(row, thresholds, minTrades);
@@ -378,9 +435,23 @@ async function main() {
 
   const strategySelect = document.getElementById("strategySelect");
   const viewSelect = document.getElementById("viewSelect");
+  const themeSelect = document.getElementById("themeSelect");
   const search = document.getElementById("search");
   const titleEl = document.getElementById("tableTitle");
   const hintEl = document.getElementById("hint");
+
+  // Theme init (default light)
+  if (themeSelect) {
+    const initialTheme = applyTheme(loadSavedTheme());
+    themeSelect.value = initialTheme;
+    themeSelect.addEventListener("change", () => {
+      const t = applyTheme(themeSelect.value);
+      saveTheme(t);
+    });
+  } else {
+    // even if the select isn't present, still apply saved theme
+    applyTheme(loadSavedTheme());
+  }
 
   let manifest;
   try {
@@ -458,7 +529,7 @@ async function main() {
   function render() {
     if (!archive) return;
 
-    const view = viewSelect.value; // expected: active|edge|trade_plan|position_plan
+    const view = viewSelect.value; // active|edge|trade_plan|position_plan
     const cfg = buildViewConfig(view);
 
     titleEl.textContent = `${(strategySelect.selectedOptions[0]?.textContent || "").trim()} — ${cfg.title}`;
@@ -468,7 +539,7 @@ async function main() {
 
     hintEl.textContent = `Anzahl: ${filtered.length} (von ${rows.length})`;
 
-    // Ranking thresholds computed on full rows (not filtered), per current view
+    // Ranking thresholds computed on full rows (not filtered)
     const thresholds = buildScoreThresholds(rows, 20);
 
     setTableHeader(thead, cfg.cols);
