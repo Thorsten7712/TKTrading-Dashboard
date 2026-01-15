@@ -73,3 +73,30 @@ tbody tr:hover { background: rgba(96,165,250,.06); }
 .badge.red { background: rgba(239,68,68,.12); }
 
 .footer { margin-top: 14px; color: var(--muted); font-size: 12px; }
+
+/* ---- Numbers: right aligned + tabular for nicer columns ---- */
+td.num, th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Ranking traffic-light marker next to Symbol ---- */
+.rank-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 8px;
+  vertical-align: middle;
+  border: 1px solid rgba(0,0,0,0.2);
+}
+
+.rank-green { background: #22c55e; }  /* green */
+.rank-yellow { background: #f59e0b; } /* yellow */
+.rank-red { background: #ef4444; }    /* red */
+.rank-na { background: #9ca3af; }     /* gray */
+
+/* Optional: make Symbol slightly bolder to emphasize */
+td.symbol {
+  font-weight: 600;
+}
