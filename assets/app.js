@@ -469,7 +469,6 @@ async function main() {
   const strategySelect = document.getElementById("strategySelect");
   const viewSelect = document.getElementById("viewSelect");
   const gateSelect = document.getElementById("gateSelect"); // optional
-  const gateOnly = document.getElementById("gateOnly");     // optional
   const search = document.getElementById("search");
   const titleEl = document.getElementById("tableTitle");
   const hintEl = document.getElementById("hint");
@@ -583,9 +582,10 @@ async function main() {
     const gateMap = new Map();
     evaluated.forEach(x => gateMap.set(x.row, x.gate));
 
-    // 2) optional gate filter (defensive)
-    const onlyPass = gateOnly ? !!gateOnly.checked : false;
-    const gateFiltered = onlyPass
+    // 2) gate filter:
+    // - Wenn Gate "Off" (preset=null): nichts filtern
+    // - Sonst: nur Gate-Pass anzeigen
+    const gateFiltered = preset
       ? evaluated.filter(x => x.gate.pass).map(x => x.row)
       : evaluated.map(x => x.row);
     
@@ -616,7 +616,6 @@ async function main() {
   });
 
   if (gateSelect) gateSelect.addEventListener("change", render);
-  if (gateOnly) gateOnly.addEventListener("change", render);
   search.addEventListener("input", render);
 
   await loadStrategy();
