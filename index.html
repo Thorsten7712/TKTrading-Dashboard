@@ -6,17 +6,17 @@
   <title>TKTrading Dashboard</title>
   <link rel="stylesheet" href="assets/style.css" />
 </head>
+
 <body>
-  <header class="wrap header">
-    <div class="title-row">
+  <header class="wrap">
+    <div class="titlebar">
       <div class="title">
         <h1>TKTrading Dashboard</h1>
         <div id="meta" class="meta">Lade …</div>
       </div>
 
-      <div class="header-actions">
-        <a class="help-btn" href="help.html" title="Handbuch öffnen" aria-label="Handbuch">?</a>
-      </div>
+      <!-- Help button (optional, if you already have it wired) -->
+      <a class="help-btn" href="help.html" title="Hilfe">?</a>
     </div>
 
     <div class="controls">
@@ -38,6 +38,21 @@
       <label>
         Filter
         <input id="search" type="search" placeholder="Symbol oder Universe (z.B. AAPL, dax)" />
+      </label>
+
+      <label>
+        Trade Gates
+        <select id="gateSelect">
+          <option value="off">Off</option>
+          <option value="conservative">Conservative</option>
+          <option value="balanced">Balanced</option>
+          <option value="aggressive">Aggressive</option>
+        </select>
+      </label>
+
+      <label class="inline">
+        <input id="gateOnly" type="checkbox" />
+        nur Gate-Pass anzeigen
       </label>
     </div>
 
