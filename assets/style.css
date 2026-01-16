@@ -6,10 +6,14 @@
   --border: #e6e6e6;
   --shadow: 0 1px 10px rgba(0,0,0,0.06);
   --accent: #2563eb;
+
+  --thead: #f6f7f9;
+  --thead-fg: #4b5563;
 }
 
 *{ box-sizing: border-box; }
 html, body { height: 100%; }
+
 body{
   margin: 0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
@@ -20,8 +24,12 @@ body{
 .wrap{
   max-width: 1240px;
   margin: 0 auto;
-  padding: 18px 18px;
+  padding: 18px;
 }
+
+/* -----------------------------
+   Header / Titlebar
+----------------------------- */
 
 .titlebar{
   display: flex;
@@ -43,25 +51,48 @@ h1{
   font-size: 16px;
 }
 
-.controls-grid{
+.help-btn{
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--fg);
+  text-decoration: none;
+  font-weight: 800;
+  line-height: 1;
+  user-select: none;
+}
+.help-btn:hover{
+  background: #f3f5f8;
+}
+
+/* -----------------------------
+   Controls row (ONE LINE)
+----------------------------- */
+
+.controls{
   margin-top: 18px;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1.1fr 1.1fr 1.4fr 1.1fr auto; /* Strategy, View, Filter, Gates, Checkbox */
   gap: 14px;
   align-items: end;
 }
 
-.control{
+/* labels are direct <label> in HTML */
+.controls label{
   display: grid;
   gap: 6px;
-}
-
-.label{
-  color: var(--muted);
   font-size: 14px;
+  color: var(--muted);
 }
 
-select, input[type="search"]{
+select,
+input[type="search"]{
   width: 100%;
   height: 42px;
   border-radius: 12px;
@@ -72,21 +103,48 @@ select, input[type="search"]{
   color: var(--fg);
 }
 
-select:focus, input[type="search"]:focus{
+select:focus,
+input[type="search"]:focus{
   outline: 3px solid rgba(37, 99, 235, 0.25);
   border-color: rgba(37, 99, 235, 0.5);
 }
 
-.control.checkbox{
-  display: flex;
+/* checkbox label in same row */
+label.inline{
+  display: flex !important;
   align-items: center;
   gap: 10px;
-  padding-top: 26px;
+  height: 42px;          /* align to inputs */
+  padding-bottom: 2px;
+  color: var(--muted);
+  white-space: nowrap;
 }
-.control.checkbox input{
+
+label.inline input[type="checkbox"]{
   width: 18px;
   height: 18px;
 }
+
+/* Responsive: stack nicely on narrow screens */
+@media (max-width: 980px){
+  .controls{
+    grid-template-columns: 1fr 1fr;
+  }
+  label.inline{
+    grid-column: 1 / -1;
+    height: auto;
+    padding-bottom: 0;
+  }
+}
+@media (max-width: 560px){
+  .controls{
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -----------------------------
+   Links row (pills)
+----------------------------- */
 
 .links{
   margin-top: 14px;
@@ -104,6 +162,10 @@ select:focus, input[type="search"]:focus{
   background: #fff;
 }
 
+/* -----------------------------
+   Card / Table
+----------------------------- */
+
 .card{
   margin-top: 18px;
   background: var(--card);
@@ -111,13 +173,6 @@ select:focus, input[type="search"]:focus{
   border-radius: 18px;
   box-shadow: var(--shadow);
   padding: 16px;
-}
-
-.card-head{
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
 }
 
 h2{
@@ -148,10 +203,10 @@ table{
 thead th{
   position: sticky;
   top: 0;
-  background: #f6f7f9;
+  background: var(--thead);
   border-bottom: 1px solid var(--border);
   font-weight: 700;
-  color: #4b5563;
+  color: var(--thead-fg);
   padding: 12px 12px;
   text-align: left;
   white-space: nowrap;
@@ -168,6 +223,7 @@ th.num, td.num{
   font-variant-numeric: tabular-nums;
 }
 
+/* sorting */
 th.sortable{
   cursor: pointer;
   user-select: none;
@@ -181,6 +237,7 @@ th.sortable.sorted .sort-arrow{
   opacity: 1;
 }
 
+/* symbol cell + ampel */
 td.symbol .symbol-wrap{
   display: inline-flex;
   align-items: center;
@@ -201,65 +258,14 @@ td.symbol .symbol-wrap{
 .rank-strong{ background: #067647; }
 .rank-na{ background: #98a2b3; }
 
+/* gate fail */
 tr.gate-fail{
   opacity: 0.6;
 }
 
+/* footer */
 .footer{
   margin-top: 16px;
   color: var(--muted);
   font-size: 14px;
-}
-
-/* Header layout + Help button */
-.header .title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* ? button */
-.help-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  border: 1px solid var(--border, #d7dbe3);
-  background: var(--card, #fff);
-  color: var(--text, #111);
-  text-decoration: none;
-  font-weight: 700;
-  line-height: 1;
-  user-select: none;
-}
-
-.help-btn:hover {
-  background: var(--muted, #f3f5f8);
-}
-
-/* Optional: back button on help page */
-.btn-outline {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border, #d7dbe3);
-  background: var(--card, #fff);
-  color: var(--text, #111);
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.btn-outline:hover {
-  background: var(--muted, #f3f5f8);
 }
